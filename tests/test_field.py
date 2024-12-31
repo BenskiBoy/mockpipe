@@ -38,6 +38,12 @@ def test_field_is_valid():
             table_name="users",
         )
 
+    with pytest.raises(InvalidValueError):
+        Field.is_valid(
+            attribs={"name": "John", "type": "not_a_valid_type", "value": "fake.name"},
+            table_name="users",
+        )
+
     assert Field.is_valid(
         attribs={"name": "John", "type": "string", "value": "fake.name"},
         table_name="users",

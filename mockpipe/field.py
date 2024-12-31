@@ -50,7 +50,7 @@ class Field:
         )
         if attribs["type"] not in Field.VALID_FIELD_TYPES:
             raise InvalidValueError(
-                f"Field type must be string, int, float, or bool - got {attribs["type"]}"
+                f"Field type must be string, int, float, or bool - got {attribs['type']}"
             )
         if Imposter.is_type(attribs["value"]) == False:
             raise InvalidValueError("Imposter value is invalid")
