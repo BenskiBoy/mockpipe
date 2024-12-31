@@ -1,0 +1,6 @@
+click==8.1.7
+duckdb==1.0.0
+Faker==26.0.0
+faker-commerce==1.0.4
+jsonlines==4.0.0
+PyYAML==6.0.1

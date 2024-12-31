@@ -169,3 +169,15 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# Project specific
+*.db
+*.db.wal
+/*.yaml
+/*.py
+!setup.py
+extract*
+.vscode
+build
+dist
+*.egg-info/
