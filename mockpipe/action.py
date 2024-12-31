@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Union
 import random
 
 from .exceptions import InvalidValueError, validate_keys
@@ -59,7 +59,7 @@ class Action:
         self,
         name: str,
         frequency: float,
-        arguments: List[str | int] = [],
+        arguments: Union[List[str], List[int]] = [],
         effect: str = None,
         effect_count: str = None,
         action_condition: str = None,
@@ -262,7 +262,7 @@ class Set(Action):
         value: Imposter,
         where_clause: str = None,
         frequency: float = 0.0,
-        arguments: List[str | int] = [],
+        arguments: Union[List[str], List[int]] = [],
         effect: str = None,
         effect_count: str = None,
         action_condition: str = None,

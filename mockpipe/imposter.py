@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 from enum import Enum
 import ast
 import random
@@ -104,7 +104,10 @@ class Imposter:
     }
 
     def __init__(
-        self, value: str, arguments: List[str | int] = [], field_name: str = ""
+        self,
+        value: str,
+        arguments: Union[List[str], List[int]] = [],
+        field_name: str = "",
     ) -> None:
         self.value = value.replace(
             "'", '"'
