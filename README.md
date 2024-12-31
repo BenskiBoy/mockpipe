@@ -1,6 +1,6 @@
 # mockpipe
-There's a lot of sample databases (for example the projects namesake, Northwind) out there and lots of ways to generate some dummy data (faker), but i couldn't find much in the way of dynamically generating realistic CDC data.
-This is an attampt at that.
+There's a lot of sample databases out there and lots of ways to generate some dummy data (i.e. faker, which this project uses), but i couldn't find much in the way of dynamically generating realistic data that could be used to generate some scenarios that one might actually find coming out of a operational systems CDC feed.
+This is an attampt to create a utility/library that can be used to setup some .
 
 From a yaml config a set of sample tables can be defined, using dummy default values for any newly generated rows along with a set of actions that can be performed with a certain frequency.
 
