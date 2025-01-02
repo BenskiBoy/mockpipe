@@ -18,7 +18,7 @@ class Config:
     """
 
     DELETE_BEHAVIOURS = ["HARD", "SOFT"]
-    DEFAULT_ACTION_RESULTS_LIMIT = 10
+    DEFAULT_ACTION_RESULTS_LIMIT = 1000
 
     def __init__(self, config: Tuple[str, dict]):
         """Init class variables and load the config file
@@ -41,14 +41,15 @@ class Config:
         else:
             raise ValueError("Invalid config_path")
 
-        self.db_path = self.config["db_path"]
-        self.output_format = self.config["output"]["format"]
-        self.output_path = self.config["output"]["path"]
-        self.delete_behaviour = self.config["delete_behaviour"].upper()
-        self.inter_action_delay = self.config["inter_action_delay"]
+        self.db_path = self.config.get("db_path", "mockpipe.db")
+        self.delete_behaviour = self.config.get("delete_behaviour", "SOFT").upper()
+        self.inter_action_delay = self.config.get("inter_action_delay", 0.5)
         self.action_results_limit = self.config.get(
             "action_results_limit", Config.DEFAULT_ACTION_RESULTS_LIMIT
         )
+
+        self.output_format = self.config.get("output", {}).get("format", "json")
+        self.output_path = self.config.get("output", {}).get("path", "extract")
 
         if self.delete_behaviour not in Config.DELETE_BEHAVIOURS:
             raise InvalidConfigSettingError(
@@ -131,7 +132,11 @@ class Config:
 
                     actions[action.get("name")] = Set(
                         name=action.get("name"),
-                        field=action.get("field", None),
+                        field=(
+                            fields[action.get("field", None)]
+                            if action.get("field", None)
+                            else None
+                        ),
                         value=Imposter(
                             action.get("value", None),
                             action.get("arguments", []),
@@ -237,3 +242,169 @@ class Config:
                         )
 
         return True
+
+    @staticmethod
+    def get_sample_config() -> str:
+        """Create a sample config file
+
+        Returns:
+            str: Sample config file
+        """
+        return """db_path: mockpipe.db
+delete_behaviour: soft
+inter_action_delay: 0.5
+
+output:
+  format: json
+  path: extact_json
+
+tables:
+  - name: employees
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+      - name: manager_id
+        type: int
+        value: table_random(employees, id, 0)
+      - name: name
+        type: string
+        value: fake.name
+      - name: address
+        type: string
+        value: fake.address
+      - name: phone
+        type: string
+        value: fake.phone_number
+      - name: email
+        type: string
+        value: fake.email
+      - name: job_title
+        type: string
+        value: fake.job
+      - name: department
+        type: string
+        value: fake.administrative_unit
+      - name: mobile
+        type: string
+        value: fake.phone_number
+      - name: city
+        type: string
+        value: fake.city
+      - name: state
+        type: string
+        value: fake.state
+      - name: country
+        type: string
+        value: fake.country
+      - name: zipcode
+        type: string
+        value: fake.zipcode
+      - name: hire_status
+        type: boolean
+        value: static(true)
+    actions:
+      - name: create
+        action: create
+        frequency: 0.25
+      - name: remove
+        action: remove
+        frequency: 0.25
+        where_condition: employees.id == table_random(employees, id, 0)
+      - name: fire
+        field: hire_status
+        action: set
+        value: static(false)
+        where_condition: employees.id == table_random(employees, id, 0)
+        frequency: 0.25
+      - name: update_phone
+        field: mobile
+        action: set
+        value: fake.phone_number
+        frequency: 0.25
+
+  - name: orders
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+      - name: employee_id
+        type: int
+        value: table_random(employees, id, 0)
+      
+      - name: order_date
+        type: string
+        value: fake.date_between
+        arguments:
+        - "-1y"
+        - "today"
+      - name: order_amount
+        type: float
+        value: fake.random_int
+        arguments:
+          - 1
+          - 10
+      - name: order_status
+        type: string
+        value: fake.random_element
+        arguments:
+        - ('pending', 'completed', 'shipped', 'delivered')
+    actions:
+      - name: create
+        action: create
+        frequency: 0.25
+      - name: remove
+        action: remove
+        frequency: 0.25
+        where_condition: orders.id == table_random(orders, id, 0)
+      - name: update_status
+        field: order_status
+        action: set
+        value: fake.random_element
+        arguments: 
+        - ('pending', 'completed', 'shipped', 'delivered')
+        frequency: 0.25
+
+  - name: products
+    fields:
+      - name: product_id
+        type: int
+        value: increment
+        is_pk: true
+      - name: product_name
+        type: string
+        value: fake.ecommerce_name
+      - name: product_price
+        type: float
+        value: fake.random_int
+        arguments:
+          - 10
+          - 100
+      - name: product_description
+        type: string
+        value: fake.sentence
+      - name: discontinued
+        type: boolean
+        value: static(false)
+
+    actions:
+      - name: create
+        action: create
+        frequency: 0.75
+      - name: update_price
+        field: product_price
+        action: set
+        value: fake.random_int
+        arguments:
+          - 10
+          - 100
+        frequency: 0.05
+      - name: discontinue
+        field: discontinued
+        action: set
+        value: static(true)
+        where_condition: products.product_id == table_random(products, product_id, 0)
+        frequency: 0.20
+        """

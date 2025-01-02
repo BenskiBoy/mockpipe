@@ -180,7 +180,7 @@ class Imposter:
                 ast.literal_eval(arg) if isinstance(arg, str) else arg
                 for arg in self.arguments
             ]
-            val = getattr(fake, self.value.replace("fake.", ""))(*lits), "FAKER"
+            val = getattr(fake, self.value.replace("fake.", ""))(*lits)
             if isinstance(val, str):
                 val = val.replace("'", "\\'")
             return ImposterDirectResult(val, "FAKER")

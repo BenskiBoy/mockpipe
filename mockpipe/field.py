@@ -54,6 +54,10 @@ class Field:
             )
         if Imposter.is_type(attribs["value"]) == False:
             raise InvalidValueError("Imposter value is invalid")
+
+        if attribs["value"] == "increment" and attribs["type"] != "int":
+            raise InvalidValueError("Increment value must be of type int")
+
         return True
 
     def __str__(self):

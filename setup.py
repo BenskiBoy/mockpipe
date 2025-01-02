@@ -4,7 +4,7 @@ import re
 
 
 here = Path(__file__).resolve().parent
-README = (here / "README.md").read_text(encoding="utf-8")
+README = (here / "README.rst").read_text(encoding="utf-8")
 
 VSRE = r"^__version__ = ['\"]([^'\"]*)['\"]"
 

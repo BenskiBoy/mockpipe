@@ -127,6 +127,11 @@ class MockPipe:
                 )
             )
 
+            # Limit the number of action results stored, remove the oldest.
+            # This is to prevent memory issues when running for a long time.
+            if len(self.action_results) > self.cnf.action_results_limit:
+                self.action_results.pop(0)
+
             self.exporter.export(table_name, latest_rows, self.cnf.output_format)
 
         if self.cnf.delete_behaviour == "HARD":
