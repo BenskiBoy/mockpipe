@@ -153,4 +153,9 @@ class DBConnector:
                 )
             elif isinstance(statement, DirectStatement):
                 final_result += str(statement.value)
-        return self.execute_sql(final_result)
+
+        try:
+            return self.execute_sql(final_result)
+        except duckdb.ParserException as e:
+            logger.error(f"Error executing query: {final_result}")
+            raise e
