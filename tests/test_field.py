@@ -48,3 +48,8 @@ def test_field_is_valid():
         attribs={"name": "John", "type": "string", "value": "fake.name"},
         table_name="users",
     )
+
+
+def test_non_int_increment():
+    with pytest.raises(InvalidValueError):
+        Field.is_valid({"name": "foo", "type": "string", "value": "increment"}, "foo")

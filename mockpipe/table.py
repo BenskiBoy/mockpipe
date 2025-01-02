@@ -23,7 +23,6 @@ from .db_connector import (
 
 
 logger = logging.getLogger()
-logger.setLevel(logging.INFO)
 
 
 class Table:
