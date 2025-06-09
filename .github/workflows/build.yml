@@ -41,6 +41,14 @@ jobs:
         run: |
           pytest
 
+  check-changelog:
+    name: Check Changelog Action
+    runs-on: ubuntu-latest
+    steps:
+      - uses: tarides/changelog-check-action@v2
+        with:
+          changelog: CHANGELOG.md
+
   build:
     if: github.ref == 'refs/heads/master'
     name: Build and Version

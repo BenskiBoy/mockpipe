@@ -109,7 +109,7 @@ def test_evaluate_imposter(mock_fake_name, mock_fake_int, table):
         )
 
 
-@patch("mockpipe.imposter.fake.name", return_value="Joey Joe Joe Shabadoo")
+@patch("mockpipe.imposter.fake.name", return_value="Joey Joe Joe Mc'Shabadoo")
 @patch("mockpipe.imposter.fake.random_int", return_value=42)
 def test_generate_insert(mock_fake_name, mock_fake_int, table):
     action_statement_collection = table.generate_insert(
@@ -125,7 +125,7 @@ def test_generate_insert(mock_fake_name, mock_fake_int, table):
         ),
         DirectStatement("', "),
         DirectStatement("'"),
-        DirectStatement("Joey Joe Joe Shabadoo"),
+        DirectStatement("Joey Joe Joe Mc''Shabadoo"),
         DirectStatement("', "),
         DirectStatement("'"),
         DirectStatement(42),
@@ -146,7 +146,7 @@ def test_generate_insert(mock_fake_name, mock_fake_int, table):
         assert statement == statements[i]
 
 
-@patch("mockpipe.imposter.fake.name", return_value="Joey Joe Joe Shabadoo")
+@patch("mockpipe.imposter.fake.name", return_value="Joey Joe Joe Mc'Shabadoo")
 def test_generate_set(mock_fake_name, table):
     action_statement_collection = table.generate_set(
         table.get_action_by_name("update_name"), []
@@ -154,7 +154,7 @@ def test_generate_set(mock_fake_name, table):
 
     statements = [
         DirectStatement("UPDATE users set name = '"),
-        DirectStatement("Joey Joe Joe Shabadoo"),
+        DirectStatement("Joey Joe Joe Mc''Shabadoo"),
         DirectStatement(
             "', change_token = (SELECT MAX(change_token) + 1 FROM users), change_type = 'U' WHERE change_type != 'D';"
         ),

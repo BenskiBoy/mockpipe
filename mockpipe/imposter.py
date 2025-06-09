@@ -109,9 +109,7 @@ class Imposter:
         arguments: Union[List[str], List[int]] = [],
         field_name: str = "",
     ) -> None:
-        self.value = value.replace(
-            "'", '"'
-        )  # replace single quotes with double quotes, makes consistent with action parsing
+        self.value = value
         self.arguments = arguments
         self.field_name = field_name
         if self.is_type(value) == False:
@@ -181,18 +179,12 @@ class Imposter:
                 for arg in self.arguments
             ]
             val = getattr(fake, self.value.replace("fake.", ""))(*lits)
-            if isinstance(val, str):
-                val = val.replace("'", "\\'")
             return ImposterDirectResult(val, "FAKER")
         elif self.arguments:
             val = getattr(fake, self.value.replace("fake.", ""))(*self.arguments)
-            if isinstance(val, str):
-                val = val.replace("'", "\\'")
             return ImposterDirectResult(val, "FAKER")
         else:
             val = getattr(fake, self.value.replace("fake.", ""))()
-            if isinstance(val, str):
-                val = val.replace("'", "\\'")
             return ImposterDirectResult(val, "FAKER")
 
     def evaluate(self):

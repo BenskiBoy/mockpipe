@@ -135,7 +135,12 @@ class Table:
         result = imposter.evaluate()
 
         if isinstance(result, ImposterDirectResult):
-            return DirectStatement(result.value)
+            if isinstance(result.value, str):
+                return DirectStatement(
+                    result.value.replace("'", "''")
+                )  # Handle single quotes in strings
+            else:
+                return DirectStatement(result.value)
 
         elif isinstance(result, ImposterLookupResult):
             return SQLStatement(

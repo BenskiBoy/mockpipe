@@ -286,8 +286,6 @@ Future Enhancements
 - improved logging
 - increased test coverage
 - simplyfy action usage and allow for duckdb functions
-- support additional data output formats (e.g. xml, parquet)
-- create custom faker functions to allow for more complex data generation
 - better typing support
 
 

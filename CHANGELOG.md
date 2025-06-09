@@ -1,6 +1,12 @@
 ## Changelog
 
-### 0.0.2 - 2024-01-02
+### 0.0.3 - 2025-06-09
+
+* fix crashes with string values containing `'` or `"`
+* add more examples
+* abstract out exporter to allow for custom exporter types
+
+### 0.0.2 - 2025-01-02
 
 * README overhall
 * Enforce action result limit
