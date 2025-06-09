@@ -287,8 +287,8 @@ Future Enhancements
 - improved logging
 - increased test coverage
 - simplyfy action usage and allow for duckdb functions
-- support additional data output formats (e.g. xml, parquet)
-- better sql typing support
+- better typing support
+
 
 
 Contributing

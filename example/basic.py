@@ -1,40 +1,6 @@
 from mockpipe import MockPipe
 import time
 
-from faker.providers import BaseProvider
-
-_kebab_types = OrderedDict(
-    [
-        (
-            "Doner",
-            65,
-        ),
-        (
-            "Shish",
-            30,
-        ),
-        (
-            "Adana",
-            5,
-        ),
-        (
-            "Kofte",
-            20,
-        ),
-    ]
-)
-
-
-class KebabTypeProvider(BaseProvider):
-    def kebab_types(self, length: int = None) -> List[str]:
-        return self.random_elements(
-            _kebab_types, length, unique=False, use_weighting=True
-        )
-
-    def kebab_type(self) -> str:
-        return self.kebab_types(1)[0]
-
-
 if __name__ == "__main__":
 
     # Just start running from a config file
@@ -61,7 +27,7 @@ tables:
         is_pk: true
       - name: some_value
         type: string
-        value: fake.kebab_types
+        value: fake.company
     actions:
       - name: create
         action: create

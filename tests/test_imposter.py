@@ -68,7 +68,7 @@ def test_eval_faker_quoted_string(mock_fake, imposter_faker_name):
     result = imposter_faker_name._eval_faker()
 
     assert isinstance(result, ImposterDirectResult)
-    assert result.value == "smith\\'s"
+    assert result.value == "smith's"
 
 
 def test_evaluate_static(imposter_static_true):

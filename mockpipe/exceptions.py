@@ -32,17 +32,6 @@ def validate_keys(
     dictionary, required_keys, optional_keys=None, additional_context=""
 ) -> None:
     """
-    Validate that the dictionary contains exactly the expected keys.
-
-    Args:
-        dictionary (dict): The dictionary to validate.
-        expected_keys (list or set): The expected keys.
-
-    Raises:
-        MissingKeysError: If any expected keys are missing.
-        UnexpectedKeysError: If any unexpected keys are present.
-    """
-    """
     Validate that the dictionary contains all required keys and any optional keys.
 
     Args:
