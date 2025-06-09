@@ -280,6 +280,7 @@ Used to specify if the action is only ever to be invoked by another action (i.e.
 | static example                | ``products.product_id == static(1)``                                                                                                                                                                                     |
 +-------------------------------+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+
 
+
 Future Enhancements
 --------------------
 - improved yaml config validation
@@ -287,6 +288,7 @@ Future Enhancements
 - increased test coverage
 - simplyfy action usage and allow for duckdb functions
 - better typing support
+
 
 
 Contributing
