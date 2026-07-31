@@ -1,5 +1,12 @@
 ## Changelog
 
+### 0.0.5 - 2026-07-31
+
+* improve config validation error messages (empty/non-mapping YAML)
+* fix --verbose so it actually produces log output
+* fix --steps 0 / --run-time 0 silently running forever instead of doing nothing
+* fix several misleading type hints (see PR #8)
+
 ### 0.0.4 - 2026-07-31
 
 * fix several crash-on-first-use bugs in config validation and action execution (see PR #7)
