@@ -299,10 +299,17 @@ class Config:
         return """db_path: mockpipe.db
 delete_behaviour: soft
 inter_action_delay: 0.5
+# seed: 42  # uncomment (with any integer) for reproducible output across runs
 
 output:
   format: json
   path: extract_json
+  batch_size: 10
+
+# every 50 recorded changes, export a full snapshot of every table's current
+# rows alongside the normal incremental stream - see README's 'Full Load'
+full_load:
+  frequency: 50
 
 tables:
   - name: employees
@@ -395,8 +402,11 @@ tables:
       - name: order_status
         type: string
         value: fake.random_element
+        # a dict-literal argument instead of a tuple gives each option a
+        # relative weight instead of a uniform chance - most orders here end
+        # up delivered, few stay pending/cancelled
         arguments:
-        - ('pending', 'completed', 'shipped', 'delivered')
+        - "{'pending': 0.1, 'shipped': 0.15, 'delivered': 0.65, 'cancelled': 0.1}"
     actions:
       - name: create
         action: create
@@ -410,7 +420,7 @@ tables:
         action: set
         value: fake.random_element
         arguments:
-        - ('pending', 'completed', 'shipped', 'delivered')
+        - "{'pending': 0.1, 'shipped': 0.15, 'delivered': 0.65, 'cancelled': 0.1}"
         frequency: 0.25
 
   - name: products
