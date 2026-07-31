@@ -147,12 +147,12 @@ class MockPipe:
                         return
                     time.sleep(self.cnf.inter_action_delay)
 
-    def _perform_iteration(self) -> List[Tuple[ActionStatementCollection, str]]:
+    def _perform_iteration(self) -> List[Tuple[ActionStatementCollection, str, int]]:
         """Perform an iteration of actions. If there is no previous action, a random action is selected.
         If there is a previous action which has an effect, the effect action is selected.
         Note: If there is a effect_count (i.e. the number of times an effect action is performed), multiple ActionStatements will be returned.
         Returns:
-            List[Tuple[ActionStatementCollection, str]]: _description_
+            List[Tuple[ActionStatementCollection, str, int]]: action statement, table name, and effect count for each action to perform
         """
         # Get all tables that have actions that are not effect only or missing an action
         available_tables = [

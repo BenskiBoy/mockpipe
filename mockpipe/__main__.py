@@ -10,9 +10,6 @@ from .config import Config
 from ._version import __version__
 
 
-logger = logging.getLogger()
-
-
 def spinning_wheel(self, message: str = "Generating"):
     """Displays a spinning wheel animation until stopped."""
 
@@ -63,16 +60,18 @@ def mockpipe_cli(
     config_create: bool, config: str, steps: int, run_time: int, verbose: bool
 ):
 
-    options_selected = sum([bool(config_create), bool(steps), bool(run_time)])
+    options_selected = sum(
+        [bool(config_create), steps is not None, run_time is not None]
+    )
     if options_selected > 1:
         raise click.UsageError(
             "Only one of --config_create, --steps, or --run-time can be provided"
         )
 
-    if verbose:
-        logger.setLevel(logging.INFO)
-    else:
-        logger.setLevel(logging.ERROR)
+    logging.basicConfig(
+        level=logging.INFO if verbose else logging.ERROR,
+        format="%(asctime)s %(levelname)s %(message)s",
+    )
 
     if config_create:
         with open("./config.yaml", "w") as f:
@@ -88,17 +87,17 @@ def mockpipe_cli(
         if not verbose:  # don't display spinner if verbose logging is enabled
             stop_flag, spinner_thread = spinning_wheel("Generating")
 
-        if not steps and not run_time and not config_create:
+        if steps is None and run_time is None and not config_create:
             mp.start()
             while True:
                 time.sleep(1)
 
-        if steps:
+        if steps is not None:
             for _ in range(steps):
                 mp.step()
                 time.sleep(mp.cnf.inter_action_delay)
 
-        if run_time:
+        if run_time is not None:
             mp.start()
             time.sleep(run_time)
 

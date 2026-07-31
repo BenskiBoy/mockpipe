@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Dict, List, Union
 
 import yaml
 import os
@@ -20,7 +20,7 @@ class Config:
     DELETE_BEHAVIOURS = ["HARD", "SOFT"]
     DEFAULT_ACTION_RESULTS_LIMIT = 1000
 
-    def __init__(self, config: Tuple[str, dict]):
+    def __init__(self, config: Union[str, dict]):
         """Init class variables and load the config file
 
         Args:
@@ -40,6 +40,11 @@ class Config:
                 self.config = yaml.safe_load(config)
         else:
             raise ValueError("Invalid config_path")
+
+        if not isinstance(self.config, dict):
+            raise InvalidConfigSettingError(
+                "Config is empty or not a valid YAML mapping, consult README for sample config"
+            )
 
         self.db_path = self.config.get("db_path", "mockpipe.db")
         self.delete_behaviour = self.config.get("delete_behaviour", "SOFT").upper()
@@ -75,11 +80,11 @@ class Config:
         for table_name in table_names:
             Path(f"{self.output_path}/{table_name}").mkdir(parents=True, exist_ok=True)
 
-    def load_datasets(self) -> List[Table]:
+    def load_datasets(self) -> Dict[str, Table]:
         """Load the datasets from the config file
 
         Returns:
-            List[Table]: List of Table objects
+            Dict[str, Table]: Table objects keyed by table name
         """
 
         if "tables" not in self.config:
@@ -160,11 +165,11 @@ class Config:
 
         return tables
 
-    def _validate_table_config(self, tables: List[Table]):
+    def _validate_table_config(self, tables: Dict[str, Table]):
         """Validate the tables and fields in the config. Can only be called after loading the tables
 
         Args:
-            tables (List[Table]): List of Table objects to validate
+            tables (Dict[str, Table]): Table objects keyed by table name, to validate
         """
 
         # validate all fields metioned in where statements and actions match the fields in the tables
