@@ -29,6 +29,7 @@ class _PermissiveModel(BaseModel):
 class OutputSchema(_PermissiveModel):
     format: str = "json"
     path: str = "extract"
+    batch_size: int = 1
 
 
 class FullLoadSchema(_PermissiveModel):

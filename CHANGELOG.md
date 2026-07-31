@@ -1,5 +1,13 @@
 ## Changelog
 
+### 0.0.9 - 2026-07-31
+
+* add `output.batch_size` to buffer changed rows per table before writing a file, instead of one file per single change (`MockPipe.flush_exports()` / `stop()` writes out any partial batch)
+* add `--output-format`/`--output-path` CLI flags to override the config file's output settings without editing it
+* add a step progress counter (`Step N/total`) for `--steps`, replacing the indefinite spinner there
+* add `--config-create` as a hyphenated alias for `--config_create`, for consistency with the rest of the CLI's flag naming
+* document the `_mockpipe_metadata` table and the new config/CLI options in the README
+
 ### 0.0.8 - 2026-07-31
 
 * **fix a crash on the CLI's own documented quickstart flow** (`--config_create` then `--steps N`) - comparing NaN change-tokens for an empty table always read as "changed", which then crashed trying to log a literal `nan` into the metadata table's SQL insert

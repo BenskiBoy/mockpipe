@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Optional, Tuple, List
+from typing import Dict, Optional, Tuple, List, Union
 import threading
 import random
 
@@ -13,13 +13,20 @@ from .action import Action, Remove
 class MockPipe:
     METADATA_TABLE_NAME = "_mockpipe_metadata"
 
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: Union[str, dict]):
 
         self.cnf = Config(config_path)
         self.db = DBConnector(self.cnf.db_path)
         self.exporter = Exporter(self.cnf.output_path)
         self.tables = self.cnf.load_datasets()
         self.action_results: List[StatementResult] = []
+        # Buffers changed rows per table until output.batch_size is reached,
+        # instead of writing one export file per single change. Flushed by
+        # flush_exports() - called automatically from stop(), but call it
+        # yourself if you only ever use step() without start()/stop().
+        self._export_buffers: Dict[str, List[Dict]] = {
+            table_name: [] for table_name in self.tables
+        }
 
         self.thread = None
         self.stop_event = threading.Event()
@@ -68,6 +75,20 @@ class MockPipe:
             self.stop_event.set()
             self.thread.join()
             self.is_running = False
+        self.flush_exports()
+
+    def flush_exports(self):
+        """Write out any buffered rows that haven't reached output.batch_size yet.
+
+        Called automatically by stop(). Call this yourself if you only ever
+        use step() without start()/stop() - otherwise a partial batch at the
+        end of your run is never written out.
+        """
+        with self._lock:
+            for table_name, buffer in self._export_buffers.items():
+                if buffer:
+                    self.exporter.export(table_name, buffer, self.cnf.output_format)
+                    self._export_buffers[table_name] = []
 
     def step(self):
         if not self.is_running:
@@ -154,7 +175,11 @@ class MockPipe:
                 if len(self.action_results) > self.cnf.action_results_limit:
                     self.action_results.pop(0)
 
-                self.exporter.export(table_name, latest_rows, self.cnf.output_format)
+                buffer = self._export_buffers.setdefault(table_name, [])
+                buffer.extend(latest_rows)
+                if len(buffer) >= self.cnf.output_batch_size:
+                    self.exporter.export(table_name, buffer, self.cnf.output_format)
+                    self._export_buffers[table_name] = []
 
                 is_deleted = isinstance(action_statement_collection.action, Remove)
                 self.db.execute_sql(

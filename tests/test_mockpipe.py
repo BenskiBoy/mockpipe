@@ -303,3 +303,49 @@ tables:
     # the four incremental exports each contain exactly the one changed row
     multi_row_files = sorted(rc for rc in row_counts if rc > 1)
     assert multi_row_files == [2, 4]
+
+
+def test_output_batch_size_reduces_file_count(tmp_path):
+    extract_path = tmp_path / "extract"
+    config = f"""
+db_path: ":memory:"
+inter_action_delay: 0.01
+output:
+  format: json
+  path: {extract_path}
+  batch_size: 3
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+    actions:
+      - name: create
+        action: create
+        frequency: 1.0
+"""
+    mp = MockPipe(config)
+    for _ in range(7):
+        mp.step()
+
+    # 7 changes at batch_size 3 -> two full batches flushed automatically,
+    # one partial batch of 1 left buffered until flush_exports()/stop()
+    files_before_flush = sorted((extract_path / "foo").glob("*.json"))
+    assert len(files_before_flush) == 2
+    assert [sum(1 for _ in open(f)) for f in files_before_flush] == [3, 3]
+
+    mp.stop()
+    files_after_flush = sorted((extract_path / "foo").glob("*.json"))
+    assert len(files_after_flush) == 3
+    row_counts = sorted(sum(1 for _ in open(f)) for f in files_after_flush)
+    assert row_counts == [1, 3, 3]
+
+
+def test_output_batch_size_default_flushes_every_change(mp):
+    # default batch_size (1) must behave exactly as before batching existed
+    mp.step()
+    mp.step()
+
+    assert mp._export_buffers["foo"] == []
