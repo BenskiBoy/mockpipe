@@ -175,6 +175,44 @@ output:
     assert config.output_url == "https://example.com/hook"
 
 
+def test_kafka_format_without_topic_or_bootstrap_servers_raises():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+db_path: simple.db
+output:
+  format: kafka
+"""
+        )
+
+
+def test_kafka_format_without_bootstrap_servers_raises():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+db_path: simple.db
+output:
+  format: kafka
+  topic: mytopic
+"""
+        )
+
+
+def test_kafka_format_with_topic_and_bootstrap_servers_is_accepted():
+    config = Config(
+        """
+db_path: simple.db
+output:
+  format: kafka
+  topic: mytopic
+  bootstrap_servers: localhost:9092
+"""
+    )
+    assert config.output_format == "kafka"
+    assert config.output_topic == "mytopic"
+    assert config.output_bootstrap_servers == "localhost:9092"
+
+
 def test_schema_validation_rejects_field_missing_type():
     with pytest.raises(InvalidConfigSettingError):
         Config(

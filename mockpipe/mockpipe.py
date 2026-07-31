@@ -17,7 +17,14 @@ class MockPipe:
 
         self.cnf = Config(config_path)
         self.db = DBConnector(self.cnf.db_path, seed=self.cnf.seed)
-        self.exporter = Exporter(self.cnf.output_path, self.cnf.output_url)
+        self.exporter = Exporter(
+            self.cnf.output_path,
+            {
+                "url": self.cnf.output_url,
+                "topic": self.cnf.output_topic,
+                "bootstrap_servers": self.cnf.output_bootstrap_servers,
+            },
+        )
         self.tables = self.cnf.load_datasets()
         self.action_results: List[StatementResult] = []
         # Buffers changed rows per table until output.batch_size is reached,
@@ -37,7 +44,7 @@ class MockPipe:
         # execute_action() recurses into itself for effect chains.
         self._lock = threading.RLock()
 
-        if self.cnf.output_format != "webhook":
+        if self.cnf.output_format not in ("webhook", "kafka"):
             self.cnf.create_output_folders(
                 [table.table_name for table in self.tables.values()]
             )
@@ -77,6 +84,7 @@ class MockPipe:
             self.thread.join()
             self.is_running = False
         self.flush_exports()
+        self.exporter.close()
 
     def flush_exports(self):
         """Write out any buffered rows that haven't reached output.batch_size yet.

@@ -58,7 +58,7 @@ def spinning_wheel(self, message: str = "Generating"):
 )
 @click.option(
     "--output-format",
-    help="Override the config file's output.format (e.g. json, csv, parquet)",
+    help="Override the config file's output.format (e.g. json, csv, parquet, webhook, kafka)",
     default=None,
 )
 @click.option(
@@ -69,6 +69,16 @@ def spinning_wheel(self, message: str = "Generating"):
 @click.option(
     "--output-url",
     help="Override the config file's output.url (used by the webhook format)",
+    default=None,
+)
+@click.option(
+    "--output-topic",
+    help="Override the config file's output.topic (used by the kafka format)",
+    default=None,
+)
+@click.option(
+    "--output-bootstrap-servers",
+    help="Override the config file's output.bootstrap_servers (used by the kafka format)",
     default=None,
 )
 @click.option(
@@ -86,6 +96,8 @@ def mockpipe_cli(
     output_format: str,
     output_path: str,
     output_url: str,
+    output_topic: str,
+    output_bootstrap_servers: str,
     verbose: bool,
 ):
 
@@ -109,7 +121,13 @@ def mockpipe_cli(
         return
 
     effective_config: Union[str, dict] = config
-    if output_format or output_path or output_url:
+    if (
+        output_format
+        or output_path
+        or output_url
+        or output_topic
+        or output_bootstrap_servers
+    ):
         cnf_probe = Config(config)
         output_cfg = cnf_probe.config.setdefault("output", {})
         if output_format:
@@ -118,6 +136,10 @@ def mockpipe_cli(
             output_cfg["path"] = output_path
         if output_url:
             output_cfg["url"] = output_url
+        if output_topic:
+            output_cfg["topic"] = output_topic
+        if output_bootstrap_servers:
+            output_cfg["bootstrap_servers"] = output_bootstrap_servers
         effective_config = cnf_probe.config
 
     if dry_run:

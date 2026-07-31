@@ -84,17 +84,20 @@ Command line Usage
   Usage: mockpipe [OPTIONS]
 
   Options:
-    --config-create      generate a sample config file
-    --config PATH        path to yaml config file
-    --steps INTEGER       Number of steps to execute initially
-    --run-time INTEGER   Time to run the mockpipe process in seconds
-    --dry-run            Validate the config file and exit without running anything
-    --output-format TEXT Override the config file's output.format (e.g. json, csv, parquet, webhook)
-    --output-path TEXT   Override the config file's output.path
-    --output-url TEXT    Override the config file's output.url (used by the webhook format)
-    --verbose            Enable verbose logging
-    --version            Show the version and exit.
-    --help               Show this message and exit.
+    --config-create              generate a sample config file
+    --config PATH                path to yaml config file
+    --steps INTEGER               Number of steps to execute initially
+    --run-time INTEGER           Time to run the mockpipe process in seconds
+    --dry-run                    Validate the config file and exit without running anything
+    --output-format TEXT         Override the config file's output.format (e.g. json, csv, parquet, webhook, kafka)
+    --output-path TEXT           Override the config file's output.path
+    --output-url TEXT            Override the config file's output.url (used by the webhook format)
+    --output-topic TEXT          Override the config file's output.topic (used by the kafka format)
+    --output-bootstrap-servers TEXT
+                                  Override the config file's output.bootstrap_servers (used by the kafka format)
+    --verbose                    Enable verbose logging
+    --version                    Show the version and exit.
+    --help                       Show this message and exit.
 
 Config Specification
 --------------------
@@ -119,21 +122,27 @@ Config Specification
 
 **Output**
 
-+------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
-| key        | value type | allowed values                | default value | sample                     | explanation                                                       |
-+============+============+===============================+===============+============================+===================================================================+
-| format     | string     | [json, csv, parquet, webhook] | json          | json                       | output format                                                     |
-+------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
-| path       | path       | any                           | extract       | extract                    | folder path for output (unused for webhook)                       |
-+------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
-| batch_size | int        | 1 ->                          | 1             | 50                         | buffer this many changed rows per table before writing a file     |
-+------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
-| url        | string     | any URL                       | N/A           | http://localhost:8080/hook | HTTP(S) endpoint to POST rows to. Required when format is webhook |
-+------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| key               | value type | allowed values                       | default value | sample                     | explanation                                                       |
++===================+============+======================================+===============+============================+===================================================================+
+| format            | string     | [json, csv, parquet, webhook, kafka] | json          | json                       | output format                                                     |
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| path              | path       | any                                  | extract       | extract                    | folder path for output (unused for webhook/kafka)                 |
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| batch_size        | int        | 1 ->                                 | 1             | 50                         | buffer this many changed rows per table before writing a file     |
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| url               | string     | any URL                              | N/A           | http://localhost:8080/hook | HTTP(S) endpoint to POST rows to. Required when format is webhook |
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| topic             | string     | any                                  | N/A           | mockpipe-changes           | Kafka topic to publish to. Required when format is kafka          |
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| bootstrap_servers | string     | any                                  | N/A           | localhost:9092             | Kafka bootstrap server(s). Required when format is kafka          |
++-------------------+------------+--------------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
 
 Note: without ``batch_size``, mockpipe writes one output file per changed row, which can produce a large number of small files over a long run. Buffered rows are also written out when the process stops (or via ``MockPipe.flush_exports()`` if you only ever call ``step()`` directly).
 
 Note: the ``webhook`` format POSTs each exported batch as JSON (``{"table": <table_name>, "rows": [...]}``) to ``output.url``, instead of writing a file - useful for testing a downstream consumer directly. ``output.path`` is unused for this format.
+
+Note: the ``kafka`` format publishes each exported batch as a JSON message (same shape as ``webhook``) to ``output.topic`` on the brokers listed in ``output.bootstrap_servers`` (comma-separated for more than one), instead of writing a file. The producer connection is kept open and reused for the life of the run, and flushed on ``stop()``/``flush_exports()``. If the topic doesn't already exist, you may see a one-off "Topic not found" warning logged while the broker auto-creates it - this is expected and the message is still delivered.
 
 **Reproducible Runs (seed)**
 
@@ -340,7 +349,7 @@ Future Enhancements
 --------------------
 - simplify action usage and allow for duckdb functions
 - move from raw SQL string concatenation to parameterized queries
-- additional exporters (e.g. direct-to-Postgres/S3, message queues)
+- additional exporters (e.g. direct-to-Postgres/S3)
 
 
 

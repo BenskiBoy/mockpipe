@@ -31,6 +31,8 @@ class OutputSchema(_PermissiveModel):
     path: str = "extract"
     batch_size: int = 1
     url: Optional[str] = None
+    topic: Optional[str] = None
+    bootstrap_servers: Optional[str] = None
 
 
 class FullLoadSchema(_PermissiveModel):

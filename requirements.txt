@@ -3,6 +3,7 @@ duckdb==1.0.0
 Faker==26.0.0
 faker-commerce==1.0.4
 jsonlines==4.0.0
+kafka-python>=2.0
 pandas>=2.0.3
 pyarrow>=14.0
 pydantic>=2.0

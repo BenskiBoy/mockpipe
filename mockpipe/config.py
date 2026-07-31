@@ -65,6 +65,10 @@ class Config:
         self.output_path = self.config.get("output", {}).get("path", "extract")
         self.output_batch_size = self.config.get("output", {}).get("batch_size", 1)
         self.output_url = self.config.get("output", {}).get("url", None)
+        self.output_topic = self.config.get("output", {}).get("topic", None)
+        self.output_bootstrap_servers = self.config.get("output", {}).get(
+            "bootstrap_servers", None
+        )
 
         self.seed = self.config.get("seed", None)
         if self.seed is not None:
@@ -81,6 +85,14 @@ class Config:
         if self.output_format == "webhook" and not self.output_url:
             raise InvalidConfigSettingError(
                 "output.url must be set when output.format is 'webhook'"
+            )
+
+        if self.output_format == "kafka" and not (
+            self.output_topic and self.output_bootstrap_servers
+        ):
+            raise InvalidConfigSettingError(
+                "output.topic and output.bootstrap_servers must both be set "
+                "when output.format is 'kafka'"
             )
 
         # full load settings

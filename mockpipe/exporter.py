@@ -1,4 +1,5 @@
-from typing import List, Dict, Optional, Type
+from typing import Any, List, Dict, Optional, Type
+import json
 import time
 import csv
 import jsonlines
@@ -6,17 +7,21 @@ import os
 
 import pandas as pd
 import requests
+from kafka import KafkaProducer
 
 
 class BaseExporter:
     """Base class for exporters, to be extended for specific formats"""
 
-    def __init__(self, base_path: str, url: Optional[str] = None):
+    def __init__(self, base_path: str, output_config: Optional[Dict[str, Any]] = None):
         self.base_path = base_path
-        self.url = url
+        self.output_config = output_config or {}
 
     def export(self, table_name: str, values: List[Dict], format: str) -> None:
         raise NotImplementedError("Subclasses should implement this method")
+
+    def close(self) -> None:
+        """Release any held resources (connections, etc). No-op by default."""
 
 
 class CSVExporter(BaseExporter):
@@ -88,14 +93,61 @@ class WebhookExporter(BaseExporter):
     def export(self, table_name: str, values: List[Dict], format: str) -> None:
         if format.lower() != "webhook":
             raise NotImplementedError("WebhookExporter only supports webhook format")
-        if not self.url:
+        url = self.output_config.get("url")
+        if not url:
             raise ValueError(
                 "output.url must be set in the config when using the webhook output format"
             )
         response = requests.post(
-            self.url, json={"table": table_name, "rows": values}, timeout=10
+            url, json={"table": table_name, "rows": values}, timeout=10
         )
         response.raise_for_status()
+
+
+class KafkaExporter(BaseExporter):
+    """Publishes changed rows as a JSON message to a configured Kafka topic,
+    instead of a file.
+
+    The producer connection is created lazily on first use and kept open for
+    reuse across calls - call close() (done automatically by
+    MockPipe.stop()) to flush and release it at the end of a run.
+    """
+
+    def __init__(self, base_path: str, output_config: Optional[Dict[str, Any]] = None):
+        super().__init__(base_path, output_config)
+        self._producer: Optional[KafkaProducer] = None
+
+    def _get_producer(self) -> KafkaProducer:
+        if self._producer is None:
+            bootstrap_servers = self.output_config.get("bootstrap_servers")
+            if not bootstrap_servers:
+                raise ValueError(
+                    "output.bootstrap_servers must be set in the config when using "
+                    "the kafka output format"
+                )
+            self._producer = KafkaProducer(
+                bootstrap_servers=bootstrap_servers,
+                value_serializer=lambda v: json.dumps(v).encode("utf-8"),
+            )
+        return self._producer
+
+    def export(self, table_name: str, values: List[Dict], format: str) -> None:
+        if format.lower() != "kafka":
+            raise NotImplementedError("KafkaExporter only supports kafka format")
+        topic = self.output_config.get("topic")
+        if not topic:
+            raise ValueError(
+                "output.topic must be set in the config when using the kafka output format"
+            )
+        producer = self._get_producer()
+        future = producer.send(topic, value={"table": table_name, "rows": values})
+        future.get(timeout=10)
+
+    def close(self) -> None:
+        if self._producer is not None:
+            self._producer.flush()
+            self._producer.close()
+            self._producer = None
 
 
 class ExporterRegistry:
@@ -110,7 +162,10 @@ class ExporterRegistry:
 
     @classmethod
     def get_exporter(
-        cls, format_name: str, base_path: str, url: Optional[str] = None
+        cls,
+        format_name: str,
+        base_path: str,
+        output_config: Optional[Dict[str, Any]] = None,
     ) -> BaseExporter:
         """Get an exporter instance for the specified format"""
         format_key = format_name.lower()
@@ -118,7 +173,7 @@ class ExporterRegistry:
             raise ValueError(f"No exporter registered for format: {format_name}")
 
         exporter_class = cls._exporters[format_key]
-        return exporter_class(base_path, url)
+        return exporter_class(base_path, output_config)
 
     @classmethod
     def list_formats(cls) -> List[str]:
@@ -138,12 +193,17 @@ ExporterRegistry.register("csv", CSVExporter)
 ExporterRegistry.register("json", JSONExporter)
 ExporterRegistry.register("parquet", ParquetExporter)
 ExporterRegistry.register("webhook", WebhookExporter)
+ExporterRegistry.register("kafka", KafkaExporter)
 
 
 class Exporter:
-    def __init__(self, base_path: str, url: Optional[str] = None):
+    def __init__(self, base_path: str, output_config: Optional[Dict[str, Any]] = None):
         self.base_path = base_path
-        self.url = url
+        self.output_config = output_config or {}
+        # Cached per format, rather than instantiated fresh on every export()
+        # call, so stateful exporters (e.g. KafkaExporter's producer
+        # connection) are reused across a run instead of reconnecting per row.
+        self._exporters: Dict[str, BaseExporter] = {}
 
     def export(self, table_name: str, values: List[Dict], format: str) -> None:
         """Export data using the appropriate exporter for the format
@@ -156,8 +216,19 @@ class Exporter:
         Raises:
             ValueError: If no exporter is registered for the format
         """
-        exporter = ExporterRegistry.get_exporter(format, self.base_path, self.url)
+        format_key = format.lower()
+        exporter = self._exporters.get(format_key)
+        if exporter is None:
+            exporter = ExporterRegistry.get_exporter(
+                format, self.base_path, self.output_config
+            )
+            self._exporters[format_key] = exporter
         exporter.export(table_name, values, format)
+
+    def close(self) -> None:
+        """Release any resources held by exporters used during this run."""
+        for exporter in self._exporters.values():
+            exporter.close()
 
     @staticmethod
     def register_exporter(format_name: str, exporter_class: Type[BaseExporter]) -> None:

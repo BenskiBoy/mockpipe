@@ -41,6 +41,7 @@ setup(
         "pydantic>=2.0",
         "pyarrow>=14.0",
         "requests>=2.31",
+        "kafka-python>=2.0",
     ],
     extras_require={
         "dev": [
