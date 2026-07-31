@@ -1,4 +1,5 @@
 from typing import Any, List, Dict, Optional, Type
+import itertools
 import json
 import time
 import csv
@@ -13,6 +14,13 @@ from kafka import KafkaProducer
 class BaseExporter:
     """Base class for exporters, to be extended for specific formats"""
 
+    # Shared across all exporter instances so filenames stay unique even if
+    # two exports happen within the same clock tick - time.time()'s
+    # resolution isn't fine enough to guarantee that on its own (observed
+    # colliding on Windows, silently overwriting one export's file with
+    # another's).
+    _filename_counter = itertools.count()
+
     def __init__(self, base_path: str, output_config: Optional[Dict[str, Any]] = None):
         self.base_path = base_path
         self.output_config = output_config or {}
@@ -23,23 +31,22 @@ class BaseExporter:
     def close(self) -> None:
         """Release any held resources (connections, etc). No-op by default."""
 
+    def _export_file_path(self, table_name: str, extension: str) -> str:
+        """Build a guaranteed-unique output file path for a table/format,
+        creating the table's output directory if it doesn't exist yet."""
+        os.makedirs(f"{self.base_path}/{table_name}", exist_ok=True)
+        timestamp = str(time.time()).replace(".", "").ljust(17, "0")
+        unique_id = f"{timestamp}_{next(BaseExporter._filename_counter)}"
+        return f"{self.base_path}/{table_name}/{table_name}_{unique_id}.{extension}"
+
 
 class CSVExporter(BaseExporter):
     def export(self, table_name: str, values: List[Dict], format: str) -> None:
         """Export data to CSV format"""
         if format.lower() != "csv":
             raise NotImplementedError("CSVExporter only supports CSV format")
-        self._export_csv(self.base_path, table_name, values)
-
-    def _export_csv(self, base_path: str, table_name: str, values: List[Dict]) -> None:
-        # Create directory if it doesn't exist
-        os.makedirs(f"{base_path}/{table_name}", exist_ok=True)
-
-        with open(
-            f"{base_path}/{table_name}/{table_name}_{str(time.time()).replace('.', '').ljust(17, '0')}.csv",
-            "w",
-            newline="",
-        ) as f:
+        file_path = self._export_file_path(table_name, "csv")
+        with open(file_path, "w", newline="") as f:
             writer = csv.DictWriter(
                 f, fieldnames=values[0].keys(), quoting=csv.QUOTE_ALL
             )
@@ -52,16 +59,8 @@ class JSONExporter(BaseExporter):
         """Export data to JSON format"""
         if format.lower() != "json":
             raise NotImplementedError("JSONExporter only supports JSON format")
-        self._export_json(self.base_path, table_name, values)
-
-    def _export_json(self, base_path: str, table_name: str, values: List[Dict]) -> None:
-        # Create directory if it doesn't exist
-        os.makedirs(f"{base_path}/{table_name}", exist_ok=True)
-
-        with jsonlines.open(
-            f"{base_path}/{table_name}/{table_name}_{str(time.time()).replace('.', '').ljust(17, '0')}.json",
-            "w",
-        ) as f:
+        file_path = self._export_file_path(table_name, "json")
+        with jsonlines.open(file_path, "w") as f:
             f.write_all(values)
 
 
@@ -70,17 +69,8 @@ class ParquetExporter(BaseExporter):
         """Export data to Parquet format"""
         if format.lower() != "parquet":
             raise NotImplementedError("ParquetExporter only supports Parquet format")
-        self._export_parquet(self.base_path, table_name, values)
-
-    def _export_parquet(
-        self, base_path: str, table_name: str, values: List[Dict]
-    ) -> None:
-        # Create directory if it doesn't exist
-        os.makedirs(f"{base_path}/{table_name}", exist_ok=True)
-
-        pd.DataFrame(values).to_parquet(
-            f"{base_path}/{table_name}/{table_name}_{str(time.time()).replace('.', '').ljust(17, '0')}.parquet"
-        )
+        file_path = self._export_file_path(table_name, "parquet")
+        pd.DataFrame(values).to_parquet(file_path)
 
 
 class WebhookExporter(BaseExporter):
