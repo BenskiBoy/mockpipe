@@ -1,17 +1,19 @@
-from typing import List, Dict, Type
+from typing import List, Dict, Optional, Type
 import time
 import csv
 import jsonlines
 import os
 
 import pandas as pd
+import requests
 
 
 class BaseExporter:
     """Base class for exporters, to be extended for specific formats"""
 
-    def __init__(self, base_path: str):
+    def __init__(self, base_path: str, url: Optional[str] = None):
         self.base_path = base_path
+        self.url = url
 
     def export(self, table_name: str, values: List[Dict], format: str) -> None:
         raise NotImplementedError("Subclasses should implement this method")
@@ -76,6 +78,26 @@ class ParquetExporter(BaseExporter):
         )
 
 
+class WebhookExporter(BaseExporter):
+    """Posts changed rows to a configured HTTP(S) endpoint, instead of a file.
+
+    Useful for testing a downstream consumer directly, rather than polling
+    for files it would otherwise have to pick up.
+    """
+
+    def export(self, table_name: str, values: List[Dict], format: str) -> None:
+        if format.lower() != "webhook":
+            raise NotImplementedError("WebhookExporter only supports webhook format")
+        if not self.url:
+            raise ValueError(
+                "output.url must be set in the config when using the webhook output format"
+            )
+        response = requests.post(
+            self.url, json={"table": table_name, "rows": values}, timeout=10
+        )
+        response.raise_for_status()
+
+
 class ExporterRegistry:
     """Registry for managing exporter classes"""
 
@@ -87,14 +109,16 @@ class ExporterRegistry:
         cls._exporters[format_name.lower()] = exporter_class
 
     @classmethod
-    def get_exporter(cls, format_name: str, base_path: str) -> BaseExporter:
+    def get_exporter(
+        cls, format_name: str, base_path: str, url: Optional[str] = None
+    ) -> BaseExporter:
         """Get an exporter instance for the specified format"""
         format_key = format_name.lower()
         if format_key not in cls._exporters:
             raise ValueError(f"No exporter registered for format: {format_name}")
 
         exporter_class = cls._exporters[format_key]
-        return exporter_class(base_path)
+        return exporter_class(base_path, url)
 
     @classmethod
     def list_formats(cls) -> List[str]:
@@ -113,11 +137,13 @@ class ExporterRegistry:
 ExporterRegistry.register("csv", CSVExporter)
 ExporterRegistry.register("json", JSONExporter)
 ExporterRegistry.register("parquet", ParquetExporter)
+ExporterRegistry.register("webhook", WebhookExporter)
 
 
 class Exporter:
-    def __init__(self, base_path: str):
+    def __init__(self, base_path: str, url: Optional[str] = None):
         self.base_path = base_path
+        self.url = url
 
     def export(self, table_name: str, values: List[Dict], format: str) -> None:
         """Export data using the appropriate exporter for the format
@@ -130,7 +156,7 @@ class Exporter:
         Raises:
             ValueError: If no exporter is registered for the format
         """
-        exporter = ExporterRegistry.get_exporter(format, self.base_path)
+        exporter = ExporterRegistry.get_exporter(format, self.base_path, self.url)
         exporter.export(table_name, values, format)
 
     @staticmethod

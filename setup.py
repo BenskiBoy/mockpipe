@@ -40,6 +40,7 @@ setup(
         # unpinned floor: same per-interpreter reasoning as pandas above.
         "pydantic>=2.0",
         "pyarrow>=14.0",
+        "requests>=2.31",
     ],
     extras_require={
         "dev": [

@@ -1,5 +1,12 @@
 ## Changelog
 
+### 0.0.10 - 2026-07-31
+
+* add a top-level `seed` config option for reproducible runs - Faker-generated values and action/table selection are now deterministic given the same seed and config (`table_random`'s DuckDB-backed sampling is seeded best-effort, but isn't guaranteed bit-for-bit reproducible - a DuckDB engine limitation)
+* add a `webhook` output format that POSTs each exported batch as JSON to a configured `output.url`, for testing a downstream consumer directly instead of writing files; add a matching `--output-url` CLI override
+* add support for weighted value distributions in `fake.*` arguments (e.g. `fake.random_element` with a dict-literal argument instead of a tuple, so options aren't picked uniformly)
+* fix a latent bug where `fake.add_provider(faker_commerce.Provider)` silently disabled Faker's weighting support project-wide, by re-registering inherited `BaseProvider` methods without `use_weighting` set
+
 ### 0.0.9 - 2026-07-31
 
 * add `output.batch_size` to buffer changed rows per table before writing a file, instead of one file per single change (`MockPipe.flush_exports()` / `stop()` writes out any partial batch)

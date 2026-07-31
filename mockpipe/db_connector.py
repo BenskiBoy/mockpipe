@@ -83,9 +83,18 @@ class StatementResult:
 
 
 class DBConnector:
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, seed: Optional[int] = None):
         self.db_path = db_path
         self.conn = duckdb.connect(str(db_path))
+        if seed is not None:
+            # table_random's `USING SAMPLE` draws use duckdb's own RNG, which
+            # is separate from python's random module - setseed() takes a
+            # DOUBLE in [-1, 1], so fold the integer seed into that range.
+            # Best-effort only: duckdb doesn't guarantee `USING SAMPLE` is
+            # bit-for-bit reproducible even with a fixed seed (it's
+            # thread/order-dependent), unlike Faker/python's random module
+            # above, which are fully deterministic once seeded.
+            self.conn.execute("SELECT setseed(?)", [(seed % 2000 - 1000) / 1000.0])
 
     def get_latest_rows(self, table_name: str) -> List[Dict]:
         """Returns the most recently modified row(s)

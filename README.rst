@@ -89,8 +89,9 @@ Command line Usage
     --steps INTEGER       Number of steps to execute initially
     --run-time INTEGER   Time to run the mockpipe process in seconds
     --dry-run            Validate the config file and exit without running anything
-    --output-format TEXT Override the config file's output.format (e.g. json, csv, parquet)
+    --output-format TEXT Override the config file's output.format (e.g. json, csv, parquet, webhook)
     --output-path TEXT   Override the config file's output.path
+    --output-url TEXT    Override the config file's output.url (used by the webhook format)
     --verbose            Enable verbose logging
     --version            Show the version and exit.
     --help               Show this message and exit.
@@ -112,21 +113,33 @@ Config Specification
 +--------------------+------------+----------------+---------------+-----------+---------------------------------------------------------------------------------------------------------+
 | full_load          | table      |                | N/A           |           | periodic full-table snapshot export, alongside the incremental change stream. See 'Full Load'           |
 +--------------------+------------+----------------+---------------+-----------+---------------------------------------------------------------------------------------------------------+
+| seed               | int        | any            | N/A (random)  | 42        | seed for reproducible runs. See 'Reproducible Runs (seed)'                                              |
++--------------------+------------+----------------+---------------+-----------+---------------------------------------------------------------------------------------------------------+
 
 
 **Output**
 
-+------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
-| key        | value type | allowed values       | default value | sample  | explanation                                                   |
-+============+============+======================+===============+=========+===============================================================+
-| format     | string     | [json, csv, parquet] | json          | json    | file format output                                            |
-+------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
-| path       | path       | any                  | extract       | extract | folder path for output                                        |
-+------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
-| batch_size | int        | 1 ->                 | 1             | 50      | buffer this many changed rows per table before writing a file |
-+------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
++------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| key        | value type | allowed values                | default value | sample                     | explanation                                                       |
++============+============+===============================+===============+============================+===================================================================+
+| format     | string     | [json, csv, parquet, webhook] | json          | json                       | output format                                                     |
++------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| path       | path       | any                           | extract       | extract                    | folder path for output (unused for webhook)                       |
++------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| batch_size | int        | 1 ->                          | 1             | 50                         | buffer this many changed rows per table before writing a file     |
++------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
+| url        | string     | any URL                       | N/A           | http://localhost:8080/hook | HTTP(S) endpoint to POST rows to. Required when format is webhook |
++------------+------------+-------------------------------+---------------+----------------------------+-------------------------------------------------------------------+
 
 Note: without ``batch_size``, mockpipe writes one output file per changed row, which can produce a large number of small files over a long run. Buffered rows are also written out when the process stops (or via ``MockPipe.flush_exports()`` if you only ever call ``step()`` directly).
+
+Note: the ``webhook`` format POSTs each exported batch as JSON (``{"table": <table_name>, "rows": [...]}``) to ``output.url``, instead of writing a file - useful for testing a downstream consumer directly. ``output.path`` is unused for this format.
+
+**Reproducible Runs (seed)**
+
+Set the top-level ``seed`` key to a fixed integer to make a run reproducible - useful for turning a flaky/failing test run into something you can reliably re-run. With the same ``seed`` and the same config, Faker-generated field values and action/table selection will be identical between runs.
+
+Note: ``table_random`` lookups rely on DuckDB's own ``USING SAMPLE`` clause, which DuckDB does not guarantee is bit-for-bit reproducible even with a fixed seed (an upstream engine limitation) - mockpipe still seeds it, but treat that part as best-effort rather than guaranteed.
 
 **Full Load**
 
@@ -244,6 +257,16 @@ mockpipe also creates its own ``_mockpipe_metadata`` table in your ``db_path`` d
 | examples    | fake.company                                                                                                          |
 +-------------+-----------------------------------------------------------------------------------------------------------------------+
 
+Note: for ``fake.random_element`` (or any other faker method accepting a set of choices), passing a dict-literal string as the argument instead of a tuple gives each option a weighted probability instead of a uniform chance, e.g.:
+
+.. code:: yaml
+
+  value: fake.random_element
+  arguments:
+    - "{'pending': 0.05, 'shipped': 0.05, 'delivered': 0.9}"
+
+The values don't need to sum to 1 - they're relative weights, not strict probabilities.
+
 
 **Effects**
 
@@ -317,7 +340,7 @@ Future Enhancements
 --------------------
 - simplify action usage and allow for duckdb functions
 - move from raw SQL string concatenation to parameterized queries
-- additional exporters (e.g. direct-to-Postgres/S3)
+- additional exporters (e.g. direct-to-Postgres/S3, message queues)
 
 
 

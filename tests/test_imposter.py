@@ -109,3 +109,29 @@ def test_evaluate_table_random(imposter_table_random):
     assert result.table == "table_name"
     assert result.field == "field_name"
     assert result.default_val == "default_value"
+
+
+def test_eval_faker_weighted_distribution_skews_towards_higher_weight():
+    imp = Imposter(
+        value="fake.random_element",
+        arguments=["{'common': 0.9, 'rare': 0.1}"],
+    )
+
+    picks = [imp._eval_faker().value for _ in range(1000)]
+
+    common_count = picks.count("common")
+    rare_count = picks.count("rare")
+    assert common_count + rare_count == 1000
+    # not a strict probability, but a 0.9/0.1 split should be lopsided
+    assert common_count > rare_count * 3
+
+
+def test_eval_faker_weighted_distribution_only_uses_configured_keys():
+    imp = Imposter(
+        value="fake.random_element",
+        arguments=["{'only_option': 1}"],
+    )
+
+    result = imp._eval_faker()
+
+    assert result.value == "only_option"

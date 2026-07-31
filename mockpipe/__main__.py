@@ -67,6 +67,11 @@ def spinning_wheel(self, message: str = "Generating"):
     default=None,
 )
 @click.option(
+    "--output-url",
+    help="Override the config file's output.url (used by the webhook format)",
+    default=None,
+)
+@click.option(
     "--verbose",
     help="Enable verbose logging",
     is_flag=True,
@@ -80,6 +85,7 @@ def mockpipe_cli(
     dry_run: bool,
     output_format: str,
     output_path: str,
+    output_url: str,
     verbose: bool,
 ):
 
@@ -103,13 +109,15 @@ def mockpipe_cli(
         return
 
     effective_config: Union[str, dict] = config
-    if output_format or output_path:
+    if output_format or output_path or output_url:
         cnf_probe = Config(config)
         output_cfg = cnf_probe.config.setdefault("output", {})
         if output_format:
             output_cfg["format"] = output_format
         if output_path:
             output_cfg["path"] = output_path
+        if output_url:
+            output_cfg["url"] = output_url
         effective_config = cnf_probe.config
 
     if dry_run:

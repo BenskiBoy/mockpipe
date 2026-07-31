@@ -1,4 +1,5 @@
 from typing import List, Optional, Union
+from collections import OrderedDict
 from enum import Enum
 import ast
 import random
@@ -13,8 +14,34 @@ from .exceptions import InvalidValueError
 
 fake = Faker("en_US")
 fake.add_provider(faker_commerce.Provider)
-random.seed(int(time.time()))
-Faker.seed(random.randint(0, 10000))
+# add_provider() re-registers every inherited BaseProvider method (not just
+# faker_commerce's own) onto the new provider instance, including
+# random_element/random_elements - but that instance never went through
+# Factory.create(use_weighting=True), so it silently falls back to the
+# BaseProvider class default of False, disabling weighted distributions
+# faker-wide. Restore it explicitly on every provider.
+for _factory in fake.factories:
+    for _provider in _factory.get_providers():
+        _provider.__use_weighting__ = True
+
+
+def set_seed(seed: Optional[int] = None) -> None:
+    """(Re-)seed both python's random module and Faker's generator.
+
+    table_random/action/effect_count selection uses python's random module,
+    while fake.* value generation uses Faker's own generator - both need
+    seeding for a run to be fully reproducible. With seed=None, falls back
+    to the previous time-based seeding (non-reproducible, the default).
+    """
+    if seed is None:
+        random.seed(int(time.time()))
+        Faker.seed(random.randint(0, 10000))
+    else:
+        random.seed(seed)
+        Faker.seed(seed)
+
+
+set_seed()
 
 
 class ImposterResult:
@@ -172,7 +199,7 @@ class Imposter:
             for arg in self.arguments:
                 if not isinstance(arg, (str)):
                     continue
-                if "(" in arg or "," in arg:
+                if "(" in arg or "," in arg or "{" in arg:
                     requires_lit = True
 
         if requires_lit:
@@ -180,6 +207,11 @@ class Imposter:
                 ast.literal_eval(arg) if isinstance(arg, str) else arg
                 for arg in self.arguments
             ]
+            # Faker's random_element/random_elements reject plain dicts (to
+            # avoid relying on PYTHONHASHSEED for ordering) - a dict literal
+            # here is a weighted distribution, e.g. arguments:
+            # - "{'pending': 0.8, 'shipped': 0.15, 'cancelled': 0.05}"
+            lits = [OrderedDict(lit) if isinstance(lit, dict) else lit for lit in lits]
             val = getattr(fake, self.value.replace("fake.", ""))(*lits)
             return ImposterDirectResult(val, "FAKER")
         elif self.arguments:

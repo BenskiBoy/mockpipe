@@ -141,6 +141,40 @@ tables:
         ).load_datasets()
 
 
+def test_seed_defaults_to_none():
+    config = Config("db_path: simple.db")
+    assert config.seed is None
+
+
+def test_seed_is_parsed_from_config():
+    config = Config("db_path: simple.db\nseed: 42")
+    assert config.seed == 42
+
+
+def test_webhook_format_without_url_raises():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+db_path: simple.db
+output:
+  format: webhook
+"""
+        )
+
+
+def test_webhook_format_with_url_is_accepted():
+    config = Config(
+        """
+db_path: simple.db
+output:
+  format: webhook
+  url: https://example.com/hook
+"""
+    )
+    assert config.output_format == "webhook"
+    assert config.output_url == "https://example.com/hook"
+
+
 def test_schema_validation_rejects_field_missing_type():
     with pytest.raises(InvalidConfigSettingError):
         Config(
