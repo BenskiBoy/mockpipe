@@ -36,6 +36,14 @@ jobs:
         run: |
           black --check .
 
+      - name: Run Flake8
+        run: |
+          flake8 mockpipe
+
+      - name: Run Mypy
+        run: |
+          mypy mockpipe
+
       - name: Run Tests
         run: |
           pytest

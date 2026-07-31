@@ -1,11 +1,10 @@
-from typing import List, Dict
+from typing import List, Dict, Optional
 import logging
 
 from .exceptions import InvalidValueError
 
 from .field import Field
 from .imposter import (
-    ImposterResult,
     ImposterDirectResult,
     ImposterLookupResult,
     ImposterIncrementResult,
@@ -104,7 +103,7 @@ class Table:
         """
 
     def evaluate_imposter(
-        self, imposter: Imposter, action_results: List[StatementResult] = []
+        self, imposter: Imposter, action_results: Optional[List[StatementResult]] = None
     ) -> Statement:
         """Evaluate the imposter and return the appropriate Statement type
 
@@ -119,6 +118,8 @@ class Table:
         Returns:
             Statement: Resulting statement
         """
+        if action_results is None:
+            action_results = []
 
         if imposter.imposter_type == ImposterType.INHERIT:
 
@@ -165,9 +166,9 @@ class Table:
         Returns:
             ActionStatementCollection: collection of statements and the source action
         """
-        result_values = []
+        result_values: List[Statement] = []
         for field in self.fields.values():
-            result_values.append(DirectStatement(f"'"))
+            result_values.append(DirectStatement("'"))
             result_values.append(self.evaluate_imposter(field.imposter, action_results))
             result_values.append(
                 DirectStatement(
@@ -191,7 +192,7 @@ class Table:
             ActionStatementCollection: collection of statements and the source action
         """
 
-        result_values = [
+        result_values: List[Statement] = [
             DirectStatement(f"UPDATE {self.table_name} set {action.field.name} = '")
         ]
         result_values.append(self.evaluate_imposter(action.value, action_results))

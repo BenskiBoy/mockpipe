@@ -1,5 +1,5 @@
 import time
-from typing import Tuple, List
+from typing import Dict, Tuple, List
 import threading
 import random
 
@@ -17,17 +17,22 @@ class MockPipe:
         self.db = DBConnector(self.cnf.db_path)
         self.exporter = Exporter(self.cnf.output_path)
         self.tables = self.cnf.load_datasets()
-        self.action_results = []
+        self.action_results: List[StatementResult] = []
 
         self.thread = None
         self.stop_event = threading.Event()
         self.is_running = False
+        # Guards action_results/max_change_token_values/db access, since
+        # execute_action() can be called directly while the background
+        # thread from start() is also running. Reentrant because
+        # execute_action() recurses into itself for effect chains.
+        self._lock = threading.RLock()
 
         self.cnf.create_output_folders(
             [table.table_name for table in self.tables.values()]
         )
 
-        self.max_change_token_values = {}
+        self.max_change_token_values: Dict[str, int] = {}
         for table in self.tables.values():
             result = self.db.execute_sql(
                 f"select count(1) as cnt from information_schema.tables where table_name = '{table.table_name}'",
@@ -74,35 +79,41 @@ class MockPipe:
                 f"Cannot execute an action directly for an EFFECT_ONLY action - {table.table_name}.{action.name}"
             )
 
-        if (
-            len(self.action_results) == 0
-            or not self.action_results[-1].action.effect_count
-        ):
-            count = 1
+        with self._lock:
+            if (
+                len(self.action_results) == 0
+                or not self.action_results[-1].action.effect_count
+            ):
+                count = 1
 
-        else:
-            count = self.action_results[-1].action.effect_count.get_count()
-            if count == "INHERIT":
-                count = self.action_results[-1].effect_count
+            else:
+                resolved_count = self.action_results[-1].action.effect_count.get_count()
+                if resolved_count == "INHERIT":
+                    resolved_count = self.action_results[-1].effect_count
+                assert isinstance(resolved_count, int)
+                count = resolved_count
 
-        results = []
-        for cnt in range(count):
-            results.append(
-                (
-                    table.get_action_statement(action, self.action_results),
-                    table.table_name,
-                    count,
+            results = []
+            for cnt in range(count):
+                results.append(
+                    (
+                        table.get_action_statement(action, self.action_results),
+                        table.table_name,
+                        count,
+                    )
                 )
-            )
-        for res in results:
-            self._handle_change(*res)
+            for res in results:
+                self._handle_change(*res)
 
-        if action.effect:
-            self.execute_action(
-                self.tables[action.effect_table],
-                self.tables[action.effect_table].actions[action.effect_action],
-                _is_effect=True,
-            )
+            if action.effect:
+                assert (
+                    action.effect_table is not None and action.effect_action is not None
+                )
+                self.execute_action(
+                    self.tables[action.effect_table],
+                    self.tables[action.effect_table].actions[action.effect_action],
+                    _is_effect=True,
+                )
 
     def _handle_change(
         self,
@@ -110,38 +121,41 @@ class MockPipe:
         table_name: str,
         effect_count: int,  # stored in the action_results, but not used. To keep history of the previous effect_count
     ):
-        self.db.execute(action_statement_collection.statements)
-        max_change_token_value = self.db.get_latest_rows(table_name)
-        if max_change_token_value != self.max_change_token_values[table_name]:
-            self.max_change_token_values[table_name] = max_change_token_value
-            latest_rows = self.db.get_latest_rows(table_name)
+        with self._lock:
+            self.db.execute(action_statement_collection.statements)
+            max_change_token_value = self.db.get_max_change_token(table_name)
+            if max_change_token_value != self.max_change_token_values[table_name]:
+                self.max_change_token_values[table_name] = max_change_token_value
+                latest_rows = self.db.get_latest_rows(table_name)
 
-            self.action_results.append(
-                StatementResult(
-                    latest_rows,
-                    table_name,
-                    action_statement_collection.action,
-                    effect_count,
+                self.action_results.append(
+                    StatementResult(
+                        latest_rows,
+                        table_name,
+                        action_statement_collection.action,
+                        effect_count,
+                    )
                 )
-            )
 
-            # Limit the number of action results stored, remove the oldest.
-            # This is to prevent memory issues when running for a long time.
-            if len(self.action_results) > self.cnf.action_results_limit:
-                self.action_results.pop(0)
+                # Limit the number of action results stored, remove the oldest.
+                # This is to prevent memory issues when running for a long time.
+                if len(self.action_results) > self.cnf.action_results_limit:
+                    self.action_results.pop(0)
 
-            self.exporter.export(table_name, latest_rows, self.cnf.output_format)
+                self.exporter.export(table_name, latest_rows, self.cnf.output_format)
 
-        if self.cnf.delete_behaviour == "HARD":
-            for table in self.tables.values():
-                self.db.execute_sql(
-                    f"delete from {table.table_name} where change_type = 'D'"
-                )
+            if self.cnf.delete_behaviour == "HARD":
+                for table in self.tables.values():
+                    self.db.execute_sql(
+                        f"delete from {table.table_name} where change_type = 'D'"
+                    )
 
     def _execute(self, run_once: bool = False):
         while not self.stop_event.is_set():
             for table in self.tables.values():
-                for res in self._perform_iteration():
+                with self._lock:
+                    iteration_results = self._perform_iteration()
+                for res in iteration_results:
                     self._handle_change(*res)
                     if run_once:
                         return
@@ -154,58 +168,67 @@ class MockPipe:
         Returns:
             List[Tuple[ActionStatementCollection, str, int]]: action statement, table name, and effect count for each action to perform
         """
-        # Get all tables that have actions that are not effect only or missing an action
-        available_tables = [
-            table
-            for table in self.tables.values()
-            if any(
-                action.action_condition != "EFFECT_ONLY"
-                for action in table.actions.values()
-            )
-        ]
+        with self._lock:
+            # Get all tables that have actions that are not effect only or missing an action
+            available_tables = [
+                table
+                for table in self.tables.values()
+                if any(
+                    action.action_condition != "EFFECT_ONLY"
+                    for action in table.actions.values()
+                )
+            ]
 
-        if (
-            len(self.action_results) == 0
-            or not self.action_results[-1].action.effect_count
-        ):
-            table = random.choice(available_tables)
-            action = random.choice(
-                [
+            if (
+                len(self.action_results) == 0
+                or not self.action_results[-1].action.effect_count
+            ):
+                table = random.choice(available_tables)
+                eligible_actions = [
                     action
                     for action in table.actions.values()
                     if action.action_condition != "EFFECT_ONLY"
                 ]
-            )
+                action = random.choices(
+                    eligible_actions,
+                    weights=[a.frequency for a in eligible_actions],
+                    k=1,
+                )[0]
 
-            return [
-                (
-                    table.get_action_statement(action, self.action_results),
-                    table.table_name,
-                    1,
-                )
-            ]
-
-        # If there is a previous action with an effect,
-        # select the effect action and run according to effect_count or effect_count_random_min/max
-        else:
-            results = []
-
-            count = self.action_results[-1].action.effect_count.get_count()
-            if count == "INHERIT":
-                count = self.action_results[-1].effect_count
-
-            for cnt in range(count):
-                table = self.tables[self.action_results[-1].action.effect_table]
-                action = table.actions[self.action_results[-1].action.effect_action]
-
-                results.append(
+                return [
                     (
                         table.get_action_statement(action, self.action_results),
                         table.table_name,
-                        count,
+                        1,
                     )
-                )
-        return results
+                ]
+
+            # If there is a previous action with an effect,
+            # select the effect action and run according to effect_count or effect_count_random_min/max
+            else:
+                results = []
+
+                resolved_count = self.action_results[-1].action.effect_count.get_count()
+                if resolved_count == "INHERIT":
+                    resolved_count = self.action_results[-1].effect_count
+                assert isinstance(resolved_count, int)
+                count = resolved_count
+
+                for cnt in range(count):
+                    effect_table = self.action_results[-1].action.effect_table
+                    effect_action = self.action_results[-1].action.effect_action
+                    assert effect_table is not None and effect_action is not None
+                    table = self.tables[effect_table]
+                    action = table.actions[effect_action]
+
+                    results.append(
+                        (
+                            table.get_action_statement(action, self.action_results),
+                            table.table_name,
+                            count,
+                        )
+                    )
+            return results
 
     def __repr__(self):
         return f"{type(self).__name__}({self.__dict__})"

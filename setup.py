@@ -31,6 +31,11 @@ setup(
         "Faker==26.0.0",
         "faker-commerce==1.0.4",
         "jsonlines==4.0.0",
+        # unpinned floor, not an exact pin: db_connector.py's .to_df() calls
+        # need pandas, but no single pandas release has wheels across the
+        # full 3.8-3.12 support matrix (2.0.3 is the last for 3.8; 3.12 needs
+        # 2.1.1+), so pip must be free to pick per-interpreter.
+        "pandas>=2.0.3",
         "PyYAML==6.0.1",
     ],
     extras_require={
@@ -38,6 +43,11 @@ setup(
             "black==24.8.0",
             "pytest==8.3.2",
             "pytest-cov==5.0.0",
+            # flake8 8.x and mypy 2.x both drop Python 3.8 support - these are
+            # the newest versions that still support the full 3.8-3.12 matrix.
+            "flake8==7.1.2",
+            "mypy==1.14.1",
+            "types-PyYAML==6.0.12.20260724",
         ],
     },
     entry_points={

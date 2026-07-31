@@ -40,6 +40,22 @@ def test_eval_static(imposter_static_true):
     assert result.value == True
 
 
+def test_eval_static_embedded_parens():
+    imp = Imposter('static("Smith & Sons (Ltd)")')
+    result = imp._eval_static()
+
+    assert isinstance(result, ImposterDirectResult)
+    assert result.value == "Smith & Sons (Ltd)"
+
+
+def test_eval_static_escaped_double_quote():
+    imp = Imposter('static("some\\"quoteed Company")')
+    result = imp._eval_static()
+
+    assert isinstance(result, ImposterDirectResult)
+    assert result.value == 'some"quoteed Company'
+
+
 def test_eval_increment(imposter_increment):
     result = imposter_increment._eval_increment()
 

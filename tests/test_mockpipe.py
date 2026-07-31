@@ -1,0 +1,191 @@
+import pytest
+
+from mockpipe.mockpipe import MockPipe
+from mockpipe.exceptions import InvalidConfigSettingError
+
+
+SINGLE_TABLE_CONFIG = """
+db_path: ":memory:"
+delete_behaviour: soft
+inter_action_delay: 0.01
+
+output:
+  format: json
+  path: /tmp/mockpipe_test_extract
+
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+      - name: name
+        type: string
+        value: static("bar")
+    actions:
+      - name: create
+        action: create
+        frequency: 1.0
+"""
+
+EFFECT_CONFIG = """
+db_path: ":memory:"
+delete_behaviour: soft
+inter_action_delay: 0.01
+
+output:
+  format: json
+  path: /tmp/mockpipe_test_extract
+
+tables:
+  - name: parent
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+    actions:
+      - name: create
+        action: create
+        frequency: 0.5
+        effect: child.create(parent_id=id)
+        effect_count: 1
+
+  - name: child
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+      - name: parent_id
+        type: int
+        value: inherit
+    actions:
+      - name: create
+        action: create
+        frequency: 0.5
+        action_condition: effect_only
+"""
+
+
+@pytest.fixture
+def mp():
+    return MockPipe(SINGLE_TABLE_CONFIG)
+
+
+def test_init_creates_tables_and_seeds_change_token(mp):
+    assert "foo" in mp.tables
+    # max(change_token) over an empty table is SQL NULL, which duckdb/pandas
+    # surfaces as NaN rather than None - not equal to itself either way,
+    # which is what makes the first real change always register as one.
+    seed_value = mp.max_change_token_values["foo"]
+    assert seed_value != seed_value
+
+    result = mp.db.execute_sql(
+        "select count(1) as cnt from information_schema.tables where table_name = 'foo'",
+        "cnt",
+    )
+    assert result == "1"
+
+
+def test_step_inserts_a_row_and_records_result(mp):
+    mp.step()
+
+    assert len(mp.action_results) == 1
+    assert mp.max_change_token_values["foo"] == 1
+
+    rows = mp.db.execute_sql("select count(1) as cnt from foo", "cnt")
+    assert rows == "1"
+
+
+def test_execute_action_create_directly(mp):
+    create_action = mp.tables["foo"].actions["create"]
+    mp.execute_action(mp.tables["foo"], create_action)
+
+    assert len(mp.action_results) == 1
+    assert mp.action_results[0].table_name == "foo"
+    rows = mp.db.execute_sql("select count(1) as cnt from foo", "cnt")
+    assert rows == "1"
+
+
+def test_execute_action_rejects_effect_only_action_directly():
+    mp = MockPipe(EFFECT_CONFIG)
+    effect_only_action = mp.tables["child"].actions["create"]
+
+    with pytest.raises(ValueError):
+        mp.execute_action(mp.tables["child"], effect_only_action)
+
+
+def test_execute_action_effect_chain_creates_child_row():
+    mp = MockPipe(EFFECT_CONFIG)
+    parent_create = mp.tables["parent"].actions["create"]
+
+    mp.execute_action(mp.tables["parent"], parent_create)
+
+    parent_count = mp.db.execute_sql("select count(1) as cnt from parent", "cnt")
+    child_count = mp.db.execute_sql("select count(1) as cnt from child", "cnt")
+    assert parent_count == "1"
+    assert child_count == "1"
+
+    # the child's parent_id should have inherited the parent's id
+    parent_id = mp.db.execute_sql("select id from parent", "id")
+    child_parent_id = mp.db.execute_sql("select parent_id from child", "parent_id")
+    assert parent_id == child_parent_id
+
+
+def test_start_and_stop_lifecycle(mp):
+    assert mp.is_running is False
+    mp.start()
+    assert mp.is_running is True
+    mp.stop()
+    assert mp.is_running is False
+
+
+def test_step_is_a_noop_while_running(mp):
+    mp.start()
+    try:
+        # step() only runs _execute directly when not already running;
+        # while start()'s background thread is running, step() should do nothing
+        results_before = len(mp.action_results)
+        mp.step()
+        # can't assert on count deterministically since the background thread
+        # is also producing changes, but step() itself must not raise
+        assert len(mp.action_results) >= results_before
+    finally:
+        mp.stop()
+
+
+def test_invalid_config_raises_before_construction():
+    with pytest.raises(InvalidConfigSettingError):
+        MockPipe("")
+
+
+def test_perform_iteration_weights_by_action_frequency():
+    config = """
+db_path: ":memory:"
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+    actions:
+      - name: common
+        action: create
+        frequency: 0.95
+      - name: rare
+        action: create
+        frequency: 0.05
+"""
+    mp = MockPipe(config)
+
+    picks = [mp._perform_iteration()[0][0].action.name for _ in range(500)]
+
+    common_count = picks.count("common")
+    rare_count = picks.count("rare")
+    assert common_count + rare_count == 500
+    # frequency isn't a strict probability (weights don't have to sum to 1),
+    # but a 0.95 vs 0.05 split should be overwhelmingly lopsided
+    assert common_count > rare_count * 5

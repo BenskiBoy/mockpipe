@@ -1,4 +1,4 @@
-from typing import List, Union, Dict
+from typing import List, Optional, Union, Dict
 import logging
 
 from pathlib import Path
@@ -8,11 +8,13 @@ from .action import Action
 
 logger = logging.getLogger()
 
+StatementValue = Union[str, int, float, bool]
+
 
 class Statement:
     def __init__(
         self,
-        value: str = None,
+        value: Optional[StatementValue] = None,
     ):
         self.value = value
 
@@ -31,7 +33,7 @@ class SQLStatement(Statement):
     Additionally, result field name the required value will be returned within
     """
 
-    def __init__(self, value: str = None, result_field: str = None):
+    def __init__(self, value: str, result_field: str):
         self.result_field = result_field
         super().__init__(value)
 
@@ -42,7 +44,7 @@ class SQLStatement(Statement):
 class DirectStatement(Statement):
     """Represents a direct value to be used in a query"""
 
-    def __init__(self, value: str = None):
+    def __init__(self, value: Optional[StatementValue] = None):
         super().__init__(value)
 
     def __eq__(self, value: object) -> bool:
@@ -117,7 +119,9 @@ class DBConnector:
             .to_dict()["change_token"][0]
         )
 
-    def execute_sql(self, query: str, result_field: str = None) -> Union[Dict, str]:
+    def execute_sql(
+        self, query: str, result_field: Optional[str] = None
+    ) -> Union[Dict, str]:
         """Execute SQL statement and optionally return a specific field
 
         Args:
@@ -153,9 +157,12 @@ class DBConnector:
         final_result = ""
         for statement in statements:
             if isinstance(statement, SQLStatement):
-                final_result += self.execute_sql(
-                    statement.value, statement.result_field
-                )
+                assert isinstance(statement.value, str)
+                sql_result = self.execute_sql(statement.value, statement.result_field)
+                assert isinstance(
+                    sql_result, str
+                ), f"Expected a scalar result for {statement.value!r}, got {sql_result!r}"
+                final_result += sql_result
             elif isinstance(statement, DirectStatement):
                 final_result += str(statement.value)
 
