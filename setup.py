@@ -47,7 +47,9 @@ setup(
             # the newest versions that still support the full 3.8-3.12 matrix.
             "flake8==7.1.2",
             "mypy==1.14.1",
-            "types-PyYAML==6.0.12.20260724",
+            # unpinned floor, not an exact pin: newer dated releases require
+            # Python >=3.10, so an exact pin breaks the 3.8/3.9 matrix jobs.
+            "types-PyYAML>=6.0.12.20241230",
         ],
     },
     entry_points={
