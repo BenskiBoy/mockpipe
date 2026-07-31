@@ -23,10 +23,10 @@ class Field:
             type (str): data type, valid values are string, int, float, boolean
             imposter (str): imposter method to generate data for the field e.g. `imposter.name()`
             is_pk (bool, optional): whether a primary key. Defaults to False.
-            table (str, optional): _description_. Defaults to ''.
+            table (str, optional): table this field belongs to, used only for error messages. Defaults to ''.
 
         Raises:
-            InvalidValueError: _description_
+            InvalidValueError: if the imposter value isn't a valid faker method or custom syntax
         """
         self.name = name
         self.type = type

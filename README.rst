@@ -159,7 +159,7 @@ Note: ``include_deletes: true`` is incompatible with ``delete_behaviour: hard``,
 +-----------+------------+------------------------------------------------+---------------+---------------------+---------------------------------------+-------------------------+
 | value     | string     | [increment, static(*), table_random(), fake.*] | N/A           | fake.date_between   | List of actions within table          | See 'Field Value Usage' |
 +-----------+------------+------------------------------------------------+---------------+---------------------+---------------------------------------+-------------------------+
-| arugments | list       | any                                            | N/A           |- "-1y"              | Arguments to pass to faker functions  | See 'Field Value Usage' |
+| arguments | list       | any                                            | N/A           |- "-1y"              | Arguments to pass to faker functions  | See 'Field Value Usage' |
 |           |            |                                                |               |- "today"            |                                       |                         |
 +-----------+------------+------------------------------------------------+---------------+---------------------+---------------------------------------+-------------------------+
 

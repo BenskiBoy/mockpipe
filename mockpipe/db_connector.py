@@ -177,7 +177,7 @@ class DBConnector:
             statements (List[Statement]): List of statements to execute
 
         Returns:
-            _type_: _description_
+            Union[Dict, str]: result of executing the concatenated statements as one query
         """
         final_result = ""
         for statement in statements:
