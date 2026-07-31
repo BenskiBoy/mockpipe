@@ -27,6 +27,19 @@ def test_parquet_is_a_registered_format():
     assert "parquet" in ExporterRegistry.list_formats()
 
 
+@patch("mockpipe.exporter.time.time", return_value=1234567890.123)
+def test_export_filenames_unique_even_with_frozen_clock(mock_time, tmp_path):
+    # time.time()'s resolution isn't fine enough to guarantee uniqueness
+    # between exports happening close together (observed colliding on
+    # Windows CI) - freezing the clock here simulates the worst case.
+    exporter = Exporter(str(tmp_path))
+    for _ in range(20):
+        exporter.export("foo", VALUES, "json")
+
+    files = list((tmp_path / "foo").glob("*.json"))
+    assert len(files) == 20
+
+
 def test_parquet_exporter_rejects_other_formats(tmp_path):
     exporter = Exporter(str(tmp_path))
     with pytest.raises(NotImplementedError):

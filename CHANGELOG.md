@@ -8,6 +8,7 @@
 * fix a latent bug where `fake.add_provider(faker_commerce.Provider)` silently disabled Faker's weighting support project-wide, by re-registering inherited `BaseProvider` methods without `use_weighting` set
 * add a `kafka` output format that publishes each exported batch as a JSON message to a configured `output.topic`/`output.bootstrap_servers`, reusing one producer connection for the life of the run; add matching `--output-topic`/`--output-bootstrap-servers` CLI overrides
 * update the `--config-create` sample config to showcase weighted value distributions (`order_status` now uses a realistic weighted split instead of a uniform one), plus `full_load` and `output.batch_size`, with a commented-out `seed` line
+* **fix a data-loss bug in the CSV/JSON/Parquet exporters**: filenames were derived only from `time.time()`, whose resolution isn't fine enough to guarantee uniqueness between two exports happening close together (observed colliding in CI on Windows) - a collision meant one export's file silently overwrote another's. Filenames now also include a monotonic counter, guaranteeing uniqueness regardless of clock resolution
 
 ### 0.0.9 - 2026-07-31
 
