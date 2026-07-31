@@ -7,10 +7,12 @@ from .config import Config
 from .db_connector import DBConnector, ActionStatementCollection, StatementResult
 from .exporter import Exporter
 from .table import Table
-from .action import Action
+from .action import Action, Remove
 
 
 class MockPipe:
+    METADATA_TABLE_NAME = "_mockpipe_metadata"
+
     def __init__(self, config_path: str):
 
         self.cnf = Config(config_path)
@@ -43,6 +45,16 @@ class MockPipe:
             self.max_change_token_values[table.table_name] = (
                 self.db.get_max_change_token(table.table_name)
             )
+
+        # The metadata table persists across restarts (it lives in the same
+        # db file), so re-opening the same db_path resumes the iteration
+        # count instead of restarting full_load's schedule from zero.
+        self.db.create_metadata_table(self.METADATA_TABLE_NAME)
+        metadata_row_count = self.db.execute_sql(
+            f"select count(1) as cnt from {self.METADATA_TABLE_NAME}", "cnt"
+        )
+        assert isinstance(metadata_row_count, str)
+        self.iteration_count = int(metadata_row_count)
 
     def start(self):
         if not self.is_running:
@@ -144,11 +156,42 @@ class MockPipe:
 
                 self.exporter.export(table_name, latest_rows, self.cnf.output_format)
 
+                is_deleted = isinstance(action_statement_collection.action, Remove)
+                self.db.execute_sql(
+                    f"INSERT INTO {self.METADATA_TABLE_NAME} "
+                    "(id, change_token, action, action_id, is_deleted) VALUES ("
+                    f"(select coalesce(max(id) + 1, 1) from {self.METADATA_TABLE_NAME}), "
+                    f"{max_change_token_value}, "
+                    f"'{action_statement_collection.action.name}', "
+                    f"'{table_name}', "
+                    f"{str(is_deleted).lower()});"
+                )
+                self.iteration_count += 1
+
+                if (
+                    self.cnf.full_load
+                    and self.cnf.full_load_frequency > 0
+                    and self.iteration_count % self.cnf.full_load_frequency == 0
+                ):
+                    self._perform_full_load()
+
             if self.cnf.delete_behaviour == "HARD":
                 for table in self.tables.values():
                     self.db.execute_sql(
                         f"delete from {table.table_name} where change_type = 'D'"
                     )
+
+    def _perform_full_load(self):
+        """Export a full snapshot of every table's current rows, in addition to
+        the normal incremental change stream. Triggered every full_load_frequency
+        recorded changes when full_load is enabled in the config.
+        """
+        for table_name in self.tables:
+            rows = self.db.get_all_rows(
+                table_name, include_deleted=self.cnf.full_load_include_deletes
+            )
+            if rows:
+                self.exporter.export(table_name, rows, self.cnf.output_format)
 
     def _execute(self, run_once: bool = False):
         while not self.stop_event.is_set():

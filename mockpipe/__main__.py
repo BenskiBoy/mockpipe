@@ -51,21 +51,31 @@ def spinning_wheel(self, message: str = "Generating"):
     type=int,
 )
 @click.option(
+    "--dry-run",
+    help="Validate the config file and exit without running anything",
+    is_flag=True,
+)
+@click.option(
     "--verbose",
     help="Enable verbose logging",
     is_flag=True,
 )
 @click.version_option(__version__)
 def mockpipe_cli(
-    config_create: bool, config: str, steps: int, run_time: int, verbose: bool
+    config_create: bool,
+    config: str,
+    steps: int,
+    run_time: int,
+    dry_run: bool,
+    verbose: bool,
 ):
 
     options_selected = sum(
-        [bool(config_create), steps is not None, run_time is not None]
+        [bool(config_create), steps is not None, run_time is not None, dry_run]
     )
     if options_selected > 1:
         raise click.UsageError(
-            "Only one of --config_create, --steps, or --run-time can be provided"
+            "Only one of --config_create, --steps, --run-time, or --dry-run can be provided"
         )
 
     logging.basicConfig(
@@ -77,6 +87,12 @@ def mockpipe_cli(
         with open("./config.yaml", "w") as f:
             f.write(Config.get_sample_config())
         print("Sample config file created at ./config.yaml")
+        return
+
+    if dry_run:
+        cnf = Config(config)
+        cnf.load_datasets()
+        click.echo(f"Config `{config}` is valid")
         return
 
     click.echo(f"Loading config from {config}")

@@ -104,6 +104,25 @@ class DBConnector:
             .to_dict(orient="records")
         )
 
+    def get_all_rows(
+        self, table_name: str, include_deleted: bool = False
+    ) -> List[Dict]:
+        """Returns every row currently in the table, for a full snapshot export
+
+        Args:
+            table_name (str): table name to extract rows from
+            include_deleted (bool, optional): include soft-deleted rows. Defaults to False.
+
+        Returns:
+            List[Dict]: list of all records in the table
+        """
+        where_clause = "" if include_deleted else "where change_type != 'D'"
+        return (
+            self.conn.sql(f"SELECT * FROM {table_name} {where_clause}")
+            .to_df()
+            .to_dict(orient="records")
+        )
+
     def get_max_change_token(self, table_name: str) -> int:
         """Select max change token from the table
 

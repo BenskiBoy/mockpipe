@@ -74,6 +74,31 @@ def test_steps_zero_does_nothing_and_exits():
         assert result.exit_code == 0
 
 
+def test_dry_run_validates_config_without_running():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with open("config.yaml", "w") as f:
+            f.write(SAMPLE_CONFIG)
+
+        result = runner.invoke(mockpipe_cli, ["--config", "config.yaml", "--dry-run"])
+
+        assert result.exit_code == 0
+        assert "is valid" in result.output
+        # dry-run must not create the db file or run any actions
+        assert not os.path.isfile("test.db")
+
+
+def test_dry_run_reports_invalid_config():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with open("config.yaml", "w") as f:
+            f.write("db_path: test.db\n")  # missing required 'tables' key
+
+        result = runner.invoke(mockpipe_cli, ["--config", "config.yaml", "--dry-run"])
+
+        assert result.exit_code != 0
+
+
 def test_steps_runs_requested_number_of_steps():
     runner = CliRunner()
     with runner.isolated_filesystem():

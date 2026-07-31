@@ -14,6 +14,9 @@
 * fix mutable default arguments across `Action`, `Field`, `Imposter`, and `Table.evaluate_imposter`
 * wire up `flake8` and `mypy` in CI (previously defined as `Makefile` targets but never actually run)
 * add test coverage for `MockPipe`, `DBConnector`, and the CLI - none of these had any tests before
+* add `full_load`: every `full_load.frequency` recorded changes, export a full snapshot of every table's current rows alongside the normal incremental change stream
+* add a metadata table tracking iteration count across runs against the same `db_path`, so `full_load`'s schedule resumes instead of restarting at zero
+* add `--dry-run` CLI flag to validate a config file and exit without running anything
 
 ### 0.0.5 - 2026-07-31
 

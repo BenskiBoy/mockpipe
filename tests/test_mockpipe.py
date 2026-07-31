@@ -189,3 +189,87 @@ tables:
     # frequency isn't a strict probability (weights don't have to sum to 1),
     # but a 0.95 vs 0.05 split should be overwhelmingly lopsided
     assert common_count > rare_count * 5
+
+
+def test_metadata_table_tracks_iteration_count(mp):
+    assert mp.iteration_count == 0
+
+    mp.step()
+    assert mp.iteration_count == 1
+
+    row_count = mp.db.execute_sql(
+        f"select count(1) as cnt from {mp.METADATA_TABLE_NAME}", "cnt"
+    )
+    assert row_count == "1"
+
+
+def test_metadata_table_resumes_iteration_count_across_restarts(tmp_path):
+    db_path = tmp_path / "resume.db"
+    extract_path = tmp_path / "extract"
+    config = f"""
+db_path: {db_path}
+inter_action_delay: 0.01
+output:
+  format: json
+  path: {extract_path}
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+    actions:
+      - name: create
+        action: create
+        frequency: 1.0
+"""
+    mp1 = MockPipe(config)
+    mp1.step()
+    mp1.step()
+    assert mp1.iteration_count == 2
+
+    # re-opening the same db_path should resume the count, not restart at 0
+    mp2 = MockPipe(config)
+    assert mp2.iteration_count == 2
+
+    mp2.step()
+    assert mp2.iteration_count == 3
+
+
+def test_full_load_triggers_periodic_snapshot_export(tmp_path):
+    extract_path = tmp_path / "extract"
+    config = f"""
+db_path: ":memory:"
+inter_action_delay: 0.01
+output:
+  format: json
+  path: {extract_path}
+full_load:
+  frequency: 2
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+    actions:
+      - name: create
+        action: create
+        frequency: 1.0
+"""
+    mp = MockPipe(config)
+    for _ in range(4):
+        mp.step()
+
+    files = sorted((extract_path / "foo").glob("*.json"))
+    # 4 incremental exports (one per create) + 2 full-load snapshots
+    # (triggered at iteration_count 2 and 4) = 6 files
+    assert len(files) == 6
+
+    row_counts = [sum(1 for _ in open(f)) for f in files]
+    # the two full-load snapshots contain every row so far (2 and 4 rows);
+    # the four incremental exports each contain exactly the one changed row
+    multi_row_files = sorted(rc for rc in row_counts if rc > 1)
+    assert multi_row_files == [2, 4]
