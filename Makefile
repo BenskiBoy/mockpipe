@@ -19,7 +19,7 @@ install:
 # Install development dependencies
 .PHONY: install-dev
 install-dev: install
-	$(PIP) install pytest black flake8 mypy
+	$(PIP) install -e ".[dev]" flake8 mypy
 
 # Install package locally in editable mode
 .PHONY: install-local

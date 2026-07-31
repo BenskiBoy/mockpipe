@@ -26,15 +26,20 @@ setup(
     long_description=README,
     packages=find_packages(exclude=excluded_packages),
     install_requires=[
-        "black==24.10.0",
         "click==8.1.7",
         "duckdb==1.0.0",
         "Faker==26.0.0",
         "faker-commerce==1.0.4",
-        "pytest==8.3.2",
-        "pytest-cov==5.0.0",
+        "jsonlines==4.0.0",
         "PyYAML==6.0.1",
     ],
+    extras_require={
+        "dev": [
+            "black==24.8.0",
+            "pytest==8.3.2",
+            "pytest-cov==5.0.0",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "mockpipe=mockpipe.__main__:mockpipe_cli",

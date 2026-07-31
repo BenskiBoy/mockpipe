@@ -1,5 +1,11 @@
 ## Changelog
 
+### 0.0.6 - 2026-07-31
+
+* fix `pip install mockpipe` crashing on import due to a missing `jsonlines` runtime dependency
+* move `black`/`pytest`/`pytest-cov` out of runtime `install_requires` into a `dev` extra (they were also breaking installs on Python 3.8, since the pinned `black` version has no 3.8 wheels)
+* CI and `make install-dev` now install from the same pinned `dev` extra instead of duplicating version pins in three places
+
 ### 0.0.5 - 2026-07-31
 
 * improve config validation error messages (empty/non-mapping YAML)
