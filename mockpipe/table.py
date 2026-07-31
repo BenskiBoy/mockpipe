@@ -160,10 +160,10 @@ class Table:
 
     def generate_insert(
         self, action: Create, action_results: List[StatementResult]
-    ) -> List[Statement]:
+    ) -> ActionStatementCollection:
         """Generate List of statements for insert
         Returns:
-            List[Statement]: List of Statemet objects
+            ActionStatementCollection: collection of statements and the source action
         """
         result_values = []
         for field in self.fields.values():
@@ -183,12 +183,12 @@ class Table:
 
     def generate_set(
         self, action: Set, action_results: List[StatementResult]
-    ) -> List[Statement]:
+    ) -> ActionStatementCollection:
         """Generate List of statements for set
         Args:
             action (Set): Action to perform
         Returns:
-            List[Statement]: List of Statement objects
+            ActionStatementCollection: collection of statements and the source action
         """
 
         result_values = [
@@ -221,12 +221,12 @@ class Table:
 
     def generate_delete(
         self, action: Remove, action_results: List[StatementResult]
-    ) -> List[Statement]:
+    ) -> ActionStatementCollection:
         """Generate List of statements for delete
         Args:
             action (Remove): Action to perform
         Returns:
-            List[Statement]: List of Statement objects
+            ActionStatementCollection: collection of statements and the source action
         """
 
         return ActionStatementCollection(

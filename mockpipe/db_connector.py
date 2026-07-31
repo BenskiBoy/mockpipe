@@ -127,11 +127,11 @@ class DBConnector:
         Returns:
             Union[Dict, str]: value or return value
         """
-        logging.info(f"Executing query: {query}")
+        logger.info(f"Executing query: {query}")
         try:
             res = self.conn.sql(query)
         except duckdb.ParserException as e:
-            logging.error(f"Error executing query: {query}")
+            logger.error(f"Error executing query: {query}")
             raise e
 
         if result_field is None:

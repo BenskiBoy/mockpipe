@@ -57,6 +57,17 @@ tables:
     assert tables["foo"].fields["id"].imposter.imposter_type == imp.imposter_type
 
 
+def test_empty_config_raises():
+    with pytest.raises(InvalidConfigSettingError):
+        Config("")
+
+    with pytest.raises(InvalidConfigSettingError):
+        Config("# just a comment, no mapping")
+
+    with pytest.raises(InvalidConfigSettingError):
+        Config("- just\n- a\n- list")
+
+
 def test_full_load_config():
     config = Config(
         """
