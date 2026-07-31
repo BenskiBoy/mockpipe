@@ -1,5 +1,11 @@
 ## Changelog
 
+### 0.0.7 - 2026-07-31
+
+* add upfront pydantic-based structural validation for config files (missing/wrong-type keys now get clear, unified errors before the deeper semantic validation runs)
+* add a Parquet exporter (`output.format: parquet`), alongside the existing JSON/CSV options
+* update README: refresh the "Future Enhancements" list to drop already-completed items, document the `parquet` output format
+
 ### 0.0.6 - 2026-07-31
 
 * fix `pip install mockpipe` crashing on import due to a missing `jsonlines` runtime dependency

@@ -97,3 +97,62 @@ full_load:
       frequency: 50
     """
         )
+
+
+def test_schema_validation_rejects_wrong_top_level_types():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+db_path: simple.db
+inter_action_delay: "not a number"
+tables: []
+"""
+        )
+
+
+def test_schema_validation_rejects_table_missing_fields():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+tables:
+  - name: foo
+    actions:
+      - name: create
+        action: create
+        frequency: 0.5
+"""
+        ).load_datasets()
+
+
+def test_schema_validation_rejects_action_missing_frequency():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+    actions:
+      - name: create
+        action: create
+"""
+        ).load_datasets()
+
+
+def test_schema_validation_rejects_field_missing_type():
+    with pytest.raises(InvalidConfigSettingError):
+        Config(
+            """
+tables:
+  - name: foo
+    fields:
+      - name: id
+        value: increment
+    actions:
+      - name: create
+        action: create
+        frequency: 0.5
+"""
+        ).load_datasets()

@@ -5,7 +5,10 @@ import os
 
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from .exceptions import InvalidConfigSettingError
+from .config_schema import ConfigSettingsSchema, TableSchema
 from .table import Table
 from .field import Field
 from .imposter import Imposter, ImposterType
@@ -45,6 +48,11 @@ class Config:
             raise InvalidConfigSettingError(
                 "Config is empty or not a valid YAML mapping, consult README for sample config"
             )
+
+        try:
+            ConfigSettingsSchema(**self.config)
+        except ValidationError as e:
+            raise InvalidConfigSettingError(f"Invalid config settings:\n{e}") from e
 
         self.db_path = self.config.get("db_path", "mockpipe.db")
         self.delete_behaviour = self.config.get("delete_behaviour", "SOFT").upper()
@@ -91,6 +99,12 @@ class Config:
             raise InvalidConfigSettingError(
                 "'tables' not found in config, consult README for sample config"
             )
+
+        try:
+            for table in self.config["tables"]:
+                TableSchema(**table)
+        except (ValidationError, TypeError) as e:
+            raise InvalidConfigSettingError(f"Invalid table config:\n{e}") from e
 
         tables: Dict[str, Table] = {}
         for table in self.config["tables"]:
