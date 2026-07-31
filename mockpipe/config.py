@@ -59,9 +59,7 @@ class Config:
         # full load settings
         self.full_load = "full_load" in self.config
         full_load_config = self.config.get("full_load") or {}
-        self.full_load_include_deletes = full_load_config.get(
-            "include_deletes", False
-        )
+        self.full_load_include_deletes = full_load_config.get("include_deletes", False)
         self.full_load_frequency = full_load_config.get("frequency", 100)
         if self.full_load_include_deletes and self.delete_behaviour == "HARD":
             raise InvalidConfigSettingError(
