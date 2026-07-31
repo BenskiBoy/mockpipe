@@ -11,7 +11,7 @@ from .exceptions import InvalidConfigSettingError
 from .config_schema import ConfigSettingsSchema, TableSchema
 from .table import Table
 from .field import Field
-from .imposter import Imposter, ImposterType
+from .imposter import Imposter, ImposterType, set_seed
 from .action import Action, Create, Remove, Set
 
 
@@ -64,6 +64,15 @@ class Config:
         self.output_format = self.config.get("output", {}).get("format", "json")
         self.output_path = self.config.get("output", {}).get("path", "extract")
         self.output_batch_size = self.config.get("output", {}).get("batch_size", 1)
+        self.output_url = self.config.get("output", {}).get("url", None)
+        self.output_topic = self.config.get("output", {}).get("topic", None)
+        self.output_bootstrap_servers = self.config.get("output", {}).get(
+            "bootstrap_servers", None
+        )
+
+        self.seed = self.config.get("seed", None)
+        if self.seed is not None:
+            set_seed(self.seed)
 
         if self.delete_behaviour not in Config.DELETE_BEHAVIOURS:
             raise InvalidConfigSettingError(
@@ -72,6 +81,19 @@ class Config:
 
         if self.output_batch_size < 1:
             raise InvalidConfigSettingError("output.batch_size must be at least 1")
+
+        if self.output_format == "webhook" and not self.output_url:
+            raise InvalidConfigSettingError(
+                "output.url must be set when output.format is 'webhook'"
+            )
+
+        if self.output_format == "kafka" and not (
+            self.output_topic and self.output_bootstrap_servers
+        ):
+            raise InvalidConfigSettingError(
+                "output.topic and output.bootstrap_servers must both be set "
+                "when output.format is 'kafka'"
+            )
 
         # full load settings
         self.full_load = "full_load" in self.config

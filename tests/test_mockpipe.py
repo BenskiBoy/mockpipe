@@ -349,3 +349,64 @@ def test_output_batch_size_default_flushes_every_change(mp):
     mp.step()
 
     assert mp._export_buffers["foo"] == []
+
+
+def _seeded_config(db_path, seed: int = 12345) -> str:
+    # deliberately no table_random field here: that's backed by duckdb's
+    # `USING SAMPLE`, which isn't guaranteed bit-for-bit reproducible even
+    # with the same seed (a documented duckdb engine limitation) - seed
+    # determinism is only asserted for what mockpipe fully controls itself:
+    # Faker-generated values and action/table selection (both driven by
+    # python's random module).
+    return f"""
+db_path: {db_path}
+seed: {seed}
+inter_action_delay: 0.01
+tables:
+  - name: employees
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+      - name: name
+        type: string
+        value: fake.name
+    actions:
+      - name: create
+        action: create
+        frequency: 0.5
+      - name: update_name
+        field: name
+        action: set
+        value: fake.name
+        frequency: 0.5
+"""
+
+
+def test_same_seed_produces_identical_generated_rows(tmp_path):
+    mp1 = MockPipe(_seeded_config(tmp_path / "a.db"))
+    for _ in range(10):
+        mp1.step()
+    rows_a = mp1.db.execute_sql("select * from employees order by id")
+
+    mp2 = MockPipe(_seeded_config(tmp_path / "b.db"))
+    for _ in range(10):
+        mp2.step()
+    rows_b = mp2.db.execute_sql("select * from employees order by id")
+
+    assert rows_a["name"] == rows_b["name"]
+
+
+def test_different_seeds_produce_different_generated_rows(tmp_path):
+    mp1 = MockPipe(_seeded_config(tmp_path / "a.db", seed=1))
+    for _ in range(10):
+        mp1.step()
+    rows_a = mp1.db.execute_sql("select * from employees order by id")
+
+    mp2 = MockPipe(_seeded_config(tmp_path / "b.db", seed=2))
+    for _ in range(10):
+        mp2.step()
+    rows_b = mp2.db.execute_sql("select * from employees order by id")
+
+    assert rows_a["name"] != rows_b["name"]

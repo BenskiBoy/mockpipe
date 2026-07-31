@@ -30,6 +30,9 @@ class OutputSchema(_PermissiveModel):
     format: str = "json"
     path: str = "extract"
     batch_size: int = 1
+    url: Optional[str] = None
+    topic: Optional[str] = None
+    bootstrap_servers: Optional[str] = None
 
 
 class FullLoadSchema(_PermissiveModel):
@@ -44,6 +47,7 @@ class ConfigSettingsSchema(_PermissiveModel):
     action_results_limit: int = 1000
     output: OutputSchema = OutputSchema()
     full_load: Optional[FullLoadSchema] = None
+    seed: Optional[int] = None
 
 
 class FieldSchema(_PermissiveModel):
