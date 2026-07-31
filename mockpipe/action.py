@@ -91,7 +91,8 @@ class Action:
                 not self.effect_table
                 or not self.effect_action
                 or not self.effect_fields
-            ) and len(self.effect_fields) != len(effect_fields):
+                or len(self.effect_fields) != len(effect_fields)
+            ):
                 raise InvalidValueError(
                     f"Invalid effect - {self.effect} - Syntax: table.action(field_from=field_to)"
                 )
@@ -124,7 +125,7 @@ class Action:
                 self.where_condition = condition
                 break
         if not tokens:
-            raise InvalidValueError(f"Invalid where condition - {self.where_condition}")
+            raise InvalidValueError(f"Invalid where condition - {where_clause}")
 
         self.where_table = tokens[0].split(".")[0]
         self.where_field = tokens[0].split(".")[1]

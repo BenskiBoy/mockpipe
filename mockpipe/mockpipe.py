@@ -97,12 +97,10 @@ class MockPipe:
         for res in results:
             self._handle_change(*res)
 
-        if self.action_results[-1].action.effect:
+        if action.effect:
             self.execute_action(
-                self.tables[self.action_results[-1].action.effect_table],
-                self.tables[self.action_results[-1].action.effect_table].actions[
-                    self.action_results[-1].action.effect_action
-                ],
+                self.tables[action.effect_table],
+                self.tables[action.effect_table].actions[action.effect_action],
                 _is_effect=True,
             )
 

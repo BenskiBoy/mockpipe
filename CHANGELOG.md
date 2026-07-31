@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.0.4 - 2026-07-31
+
+* fix several crash-on-first-use bugs in config validation and action execution (see PR #7)
+
 ### 0.0.3 - 2025-06-09
 
 * fix crashes with string values containing `'` or `"`
