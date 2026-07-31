@@ -56,9 +56,16 @@ class Config:
                 "Invalid delete behaviour, either 'HARD' or 'SOFT'"
             )
 
-        if self.delete_behaviour not in Config.DELETE_BEHAVIOURS:
+        # full load settings
+        self.full_load = "full_load" in self.config
+        full_load_config = self.config.get("full_load") or {}
+        self.full_load_include_deletes = full_load_config.get(
+            "include_deletes", False
+        )
+        self.full_load_frequency = full_load_config.get("frequency", 100)
+        if self.full_load_include_deletes and self.delete_behaviour == "HARD":
             raise InvalidConfigSettingError(
-                "Invalid delete behaviour, either 'HARD' or 'SOFT'"
+                "Cannot include deletes in full load when delete_behaviour is HARD"
             )
 
     def create_output_folders(self, table_names: List[str]):
@@ -177,11 +184,11 @@ class Config:
                         raise InvalidConfigSettingError(
                             f"where condition `{field.imposter.value}` is invalid"
                         )
-                    if not tables[fields[0]]:
+                    if fields[0] not in tables:
                         raise InvalidConfigSettingError(
                             f"Table `{fields[0]}` not found in config for field value `{field.imposter.value}`"
                         )
-                    if not tables[fields[0]].fields[fields[1]]:
+                    if fields[1] not in tables[fields[0]].fields:
                         raise InvalidConfigSettingError(
                             f"Field `{fields[1]}` not found in table `{fields[0]}` for field value `{field.imposter.value}`"
                         )
@@ -190,11 +197,11 @@ class Config:
                 if (
                     isinstance(action, Set) or isinstance(action, Remove)
                 ) and action.where_clause is not None:
-                    if tables[action.where_table] is None:
+                    if action.where_table not in tables:
                         raise InvalidConfigSettingError(
                             f"Table `{action.where_table}` not found in config"
                         )
-                    if tables[action.where_table].fields[action.where_field] is None:
+                    if action.where_field not in tables[action.where_table].fields:
                         raise InvalidConfigSettingError(
                             f"Field `{action.where_field}` not found in table `{action.where_table}`"
                         )
@@ -209,34 +216,34 @@ class Config:
                             raise InvalidConfigSettingError(
                                 f"where condition {action.where_value} is invalid"
                             )
-                        if not tables[fields[0]]:
+                        if fields[0] not in tables:
                             raise InvalidConfigSettingError(
                                 f"Table `{fields[0]}` not found in config for where condition `{action.where_value}`"
                             )
-                        if not tables[fields[0]].fields[fields[1]]:
+                        if fields[1] not in tables[fields[0]].fields:
                             raise InvalidConfigSettingError(
                                 f"Field `{fields[1]}` not found in table `{fields[0]}` for where condition `{action.where_value}`"
                             )
 
                 if action.effect:
 
-                    if tables[action.effect_table] is None:
+                    if action.effect_table not in tables:
                         raise InvalidConfigSettingError(
                             f"Table `{action.effect_table}` not found in config"
                         )
                     for effect_field_from in action.effect_fields.values():
-                        if table.fields[effect_field_from] is None:
+                        if effect_field_from not in table.fields:
                             raise InvalidConfigSettingError(
                                 f"Field `{effect_field_from}` not found in table `{action.effect_table}`"
                             )
                     for effect_field_to in action.effect_fields.keys():
-                        if tables[action.effect_table].fields[effect_field_to] is None:
+                        if effect_field_to not in tables[action.effect_table].fields:
                             raise InvalidConfigSettingError(
                                 f"Field `{effect_field_to}` not found in table `{action.effect_table}`"
                             )
 
                     # if effect action doesn't exist in the table
-                    if not tables[action.effect_table].actions[action.effect_action]:
+                    if action.effect_action not in tables[action.effect_table].actions:
                         raise InvalidConfigSettingError(
                             f"""Effect action `{action.effect_action}` not found in table `{tables[action.effect_table].table_name}`"""
                         )

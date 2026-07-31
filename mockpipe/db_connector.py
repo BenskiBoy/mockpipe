@@ -164,3 +164,22 @@ class DBConnector:
         except duckdb.ParserException as e:
             logger.error(f"Error executing query: {final_result}")
             raise e
+
+    def create_metadata_table(self, table_name: str):
+        """Create a metadata table to track current iteration step, config, and other relevant information.
+
+        Args:
+            table_name (str): table name to create the metadata table for
+        """
+
+        self.conn.execute(
+            f"""
+        CREATE TABLE IF NOT EXISTS {table_name} (
+            id INTEGER PRIMARY KEY,
+            change_token INTEGER,
+            action TEXT,
+            action_id TEXT,
+            is_deleted BOOLEAN DEFAULT FALSE
+        );
+        """
+        )
