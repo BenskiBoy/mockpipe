@@ -123,20 +123,26 @@ class DBConnector:
             .to_dict(orient="records")
         )
 
-    def get_max_change_token(self, table_name: str) -> int:
+    def get_max_change_token(self, table_name: str) -> Optional[int]:
         """Select max change token from the table
 
         Args:
             table_name (str):  table name to extract the greatest change record token from
 
         Returns:
-            int: max change token value
+            Optional[int]: max change token value, or None if the table has no rows yet
         """
-        return (
+        value = (
             self.conn.sql(f"SELECT max(change_token) as change_token from {table_name}")
             .to_df()
             .to_dict()["change_token"][0]
         )
+        # max() over an empty table is SQL NULL, which pandas surfaces as NaN.
+        # NaN is never equal to itself, so callers comparing old vs new values
+        # need a real None here instead, or "still empty" reads as "changed".
+        if value != value:
+            return None
+        return int(value)
 
     def execute_sql(
         self, query: str, result_field: Optional[str] = None
@@ -171,7 +177,7 @@ class DBConnector:
             statements (List[Statement]): List of statements to execute
 
         Returns:
-            _type_: _description_
+            Union[Dict, str]: result of executing the concatenated statements as one query
         """
         final_result = ""
         for statement in statements:

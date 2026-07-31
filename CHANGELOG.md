@@ -1,5 +1,11 @@
 ## Changelog
 
+### 0.0.8 - 2026-07-31
+
+* **fix a crash on the CLI's own documented quickstart flow** (`--config_create` then `--steps N`) - comparing NaN change-tokens for an empty table always read as "changed", which then crashed trying to log a literal `nan` into the metadata table's SQL insert
+* fix the README's "Basic Usage" Python example - it used a config schema (`columns`, `faker:`, `primary_key`) and class name (`Mockpipe`) that never matched the real implementation, and the code wasn't even valid Python (unterminated string)
+* fix a typo in the `--config_create` sample config's output path (`extact_json` -> `extract_json`)
+
 ### 0.0.7 - 2026-07-31
 
 * add upfront pydantic-based structural validation for config files (missing/wrong-type keys now get clear, unified errors before the deeper semantic validation runs)

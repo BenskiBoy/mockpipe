@@ -76,11 +76,9 @@ def mp():
 
 def test_init_creates_tables_and_seeds_change_token(mp):
     assert "foo" in mp.tables
-    # max(change_token) over an empty table is SQL NULL, which duckdb/pandas
-    # surfaces as NaN rather than None - not equal to itself either way,
-    # which is what makes the first real change always register as one.
-    seed_value = mp.max_change_token_values["foo"]
-    assert seed_value != seed_value
+    # max(change_token) over an empty table is SQL NULL; get_max_change_token
+    # normalizes the resulting NaN to a clean, comparable None.
+    assert mp.max_change_token_values["foo"] is None
 
     result = mp.db.execute_sql(
         "select count(1) as cnt from information_schema.tables where table_name = 'foo'",
@@ -107,6 +105,38 @@ def test_execute_action_create_directly(mp):
     assert mp.action_results[0].table_name == "foo"
     rows = mp.db.execute_sql("select count(1) as cnt from foo", "cnt")
     assert rows == "1"
+
+
+def test_remove_action_on_empty_table_is_not_treated_as_a_change():
+    # A remove/set action whose where_condition matches nothing (because the
+    # table is still empty) must not register as a change - previously this
+    # crashed, since comparing NaN (an empty table's max change_token) to NaN
+    # is always "different" in Python, and the resulting bogus change_token
+    # then got embedded literally as `nan` into the metadata table's INSERT.
+    mp = MockPipe(
+        """
+db_path: ":memory:"
+tables:
+  - name: foo
+    fields:
+      - name: id
+        type: int
+        value: increment
+        is_pk: true
+    actions:
+      - name: remove
+        action: remove
+        frequency: 1.0
+        where_condition: foo.id == table_random(foo, id, 0)
+"""
+    )
+    remove_action = mp.tables["foo"].actions["remove"]
+
+    mp.execute_action(mp.tables["foo"], remove_action)
+
+    assert mp.action_results == []
+    assert mp.iteration_count == 0
+    assert mp.max_change_token_values["foo"] is None
 
 
 def test_execute_action_rejects_effect_only_action_directly():

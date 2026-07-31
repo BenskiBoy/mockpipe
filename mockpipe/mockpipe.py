@@ -1,5 +1,5 @@
 import time
-from typing import Dict, Tuple, List
+from typing import Dict, Optional, Tuple, List
 import threading
 import random
 
@@ -34,7 +34,7 @@ class MockPipe:
             [table.table_name for table in self.tables.values()]
         )
 
-        self.max_change_token_values: Dict[str, int] = {}
+        self.max_change_token_values: Dict[str, Optional[int]] = {}
         for table in self.tables.values():
             result = self.db.execute_sql(
                 f"select count(1) as cnt from information_schema.tables where table_name = '{table.table_name}'",
