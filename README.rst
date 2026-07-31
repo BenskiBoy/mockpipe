@@ -82,6 +82,8 @@ Command line Usage
     --config PATH       path to yaml config file
     --steps INTEGER     Number of steps to execute initially
     --run-time INTEGER  Time to run the mockpipe process in seconds
+    --dry-run           Validate the config file and exit without running anything
+    --verbose           Enable verbose logging
     --version           Show the version and exit.
     --help              Show this message and exit.
 
@@ -100,6 +102,8 @@ Config Specification
 +--------------------+------------+----------------+---------------+-----------+---------------------------------------------------------------------------------------------------------+
 | output             | table      |                |               |           | output format                                                                                           |
 +--------------------+------------+----------------+---------------+-----------+---------------------------------------------------------------------------------------------------------+
+| full_load          | table      |                | N/A           |           | periodic full-table snapshot export, alongside the incremental change stream. See 'Full Load'           |
++--------------------+------------+----------------+---------------+-----------+---------------------------------------------------------------------------------------------------------+
 
 
 **Output**
@@ -111,6 +115,20 @@ Config Specification
 +--------+------------+----------------+---------------+---------+------------------------+
 | path   | path       | any            | extract       | extract | folder path for output |
 +--------+------------+----------------+---------------+---------+------------------------+
+
+**Full Load**
+
+If the ``full_load`` key is present, every ``full_load.frequency`` recorded changes (across all tables combined), mockpipe exports a full snapshot of each table's current rows in addition to the normal incremental export for the change that just happened. This is useful for downstream consumers that periodically want a fresh full baseline rather than only ever seeing incremental changes.
+
++-----------------+------------+----------------+---------------+--------+-------------------------------------------------------------+
+| key             | value type | allowed values | default value | sample | explanation                                                 |
++=================+============+================+===============+========+=============================================================+
+| include_deletes | bool       | any            | false         | true   | whether soft-deleted rows are included in the full snapshot |
++-----------------+------------+----------------+---------------+--------+-------------------------------------------------------------+
+| frequency       | int        | 1 ->           | 100           | 50     | how many recorded changes between each full snapshot export |
++-----------------+------------+----------------+---------------+--------+-------------------------------------------------------------+
+
+Note: ``include_deletes: true`` is incompatible with ``delete_behaviour: hard``, since hard-deleted rows no longer exist to include.
 
 **Tables**
 

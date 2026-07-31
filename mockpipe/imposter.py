@@ -1,4 +1,4 @@
-from typing import List, Union
+from typing import List, Optional, Union
 from enum import Enum
 import ast
 import random
@@ -35,7 +35,7 @@ class ImposterResult:
 class ImposterDirectResult(ImposterResult):
     """Direct result from faker method"""
 
-    def __init__(self, value, type: str = None):
+    def __init__(self, value, type: Optional[str] = None):
         self.value = value
         self.type = type  # type of value, static, imposter, etc. (for debugging)
 
@@ -89,8 +89,10 @@ class Imposter:
     # TODO: Make sub classes for faker types that inherit from parent Imposter
 
     CUSTOM_METHODS = ["table_random", "static", "increment"]
-    STATIC_REGEX_CHECK = r"static\((.*?)\)"
-    STATIC_REGEX_EXTRACT = r"static\(.*?\)"
+    # greedy: a static value may itself contain literal parentheses, e.g.
+    # static("Smith & Sons (Ltd)") - match through to the *last* ")".
+    STATIC_REGEX_CHECK = r"static\((.*)\)"
+    STATIC_REGEX_EXTRACT = r"static\(.*\)"
     INCREMENT_REGEX_CHECK = r"increment"
     INHERIT_REGEX_CHECK = r"inherit"
     TABLE_RANDOM_REGEX_EXTRACT = r"table_random\(.*?, *.*?, *.*?\)"
@@ -106,13 +108,13 @@ class Imposter:
     def __init__(
         self,
         value: str,
-        arguments: Union[List[str], List[int]] = [],
+        arguments: Optional[Union[List[str], List[int]]] = None,
         field_name: str = "",
     ) -> None:
         self.value = value
-        self.arguments = arguments
+        self.arguments = arguments if arguments is not None else []
         self.field_name = field_name
-        if self.is_type(value) == False:
+        if self.is_type(value) is False:
             raise InvalidValueError("Imposter value must be valid faker method")
 
         if self.is_custom_method(value):
@@ -143,11 +145,11 @@ class Imposter:
         if result.replace(".", "", 1).isdigit():
             return ImposterDirectResult(float(result), "STATIC")
         if result[0] == '"' and result[-1] == '"':
-            return ImposterDirectResult(result[1:-1], "STATIC")
+            return ImposterDirectResult(result[1:-1].replace('\\"', '"'), "STATIC")
         else:
             raise InvalidValueError(f"Invalid static value - {self.value}")
 
-    def _eval_increment(self) -> ImposterLookupResult:
+    def _eval_increment(self) -> ImposterIncrementResult:
         return ImposterIncrementResult()
 
     def _eval_table_random(self) -> ImposterLookupResult:

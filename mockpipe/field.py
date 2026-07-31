@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, List, Optional
 from .imposter import Imposter
 
 from .exceptions import InvalidValueError, validate_keys
@@ -14,7 +14,7 @@ class Field:
         imposter: str,
         is_pk: bool = False,
         table: str = "",
-        arguments: list = [],
+        arguments: Optional[List] = None,
     ) -> None:
         """A field is a column in a table.
 
@@ -31,7 +31,9 @@ class Field:
         self.name = name
         self.type = type
         self.is_pk = is_pk
-        if Imposter.is_type(imposter) == False:
+        if arguments is None:
+            arguments = []
+        if Imposter.is_type(imposter) is False:
             raise InvalidValueError(
                 f"Imposter value `{imposter}` is invalid for field `{name}` in table `{table}`"
             )
@@ -52,7 +54,7 @@ class Field:
             raise InvalidValueError(
                 f"Field type must be string, int, float, or bool - got {attribs['type']}"
             )
-        if Imposter.is_type(attribs["value"]) == False:
+        if Imposter.is_type(attribs["value"]) is False:
             raise InvalidValueError("Imposter value is invalid")
 
         if attribs["value"] == "increment" and attribs["type"] != "int":

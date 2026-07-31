@@ -26,15 +26,32 @@ setup(
     long_description=README,
     packages=find_packages(exclude=excluded_packages),
     install_requires=[
-        "black==24.10.0",
         "click==8.1.7",
         "duckdb==1.0.0",
         "Faker==26.0.0",
         "faker-commerce==1.0.4",
-        "pytest==8.3.2",
-        "pytest-cov==5.0.0",
+        "jsonlines==4.0.0",
+        # unpinned floor, not an exact pin: db_connector.py's .to_df() calls
+        # need pandas, but no single pandas release has wheels across the
+        # full 3.8-3.12 support matrix (2.0.3 is the last for 3.8; 3.12 needs
+        # 2.1.1+), so pip must be free to pick per-interpreter.
+        "pandas>=2.0.3",
         "PyYAML==6.0.1",
     ],
+    extras_require={
+        "dev": [
+            "black==24.8.0",
+            "pytest==8.3.2",
+            "pytest-cov==5.0.0",
+            # flake8 8.x and mypy 2.x both drop Python 3.8 support - these are
+            # the newest versions that still support the full 3.8-3.12 matrix.
+            "flake8==7.1.2",
+            "mypy==1.14.1",
+            # unpinned floor, not an exact pin: newer dated releases require
+            # Python >=3.10, so an exact pin breaks the 3.8/3.9 matrix jobs.
+            "types-PyYAML>=6.0.12.20241230",
+        ],
+    },
     entry_points={
         "console_scripts": [
             "mockpipe=mockpipe.__main__:mockpipe_cli",

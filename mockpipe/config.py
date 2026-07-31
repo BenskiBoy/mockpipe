@@ -9,7 +9,7 @@ from .exceptions import InvalidConfigSettingError
 from .table import Table
 from .field import Field
 from .imposter import Imposter, ImposterType
-from .action import Create, Remove, Set
+from .action import Action, Create, Remove, Set
 
 
 class Config:
@@ -92,10 +92,10 @@ class Config:
                 "'tables' not found in config, consult README for sample config"
             )
 
-        tables = {}
+        tables: Dict[str, Table] = {}
         for table in self.config["tables"]:
-            fields = {}
-            actions = {}
+            fields: Dict[str, Field] = {}
+            actions: Dict[str, Action] = {}
             table_name = table.get("name", None)
             if table_name is None:
                 raise InvalidConfigSettingError("Table name missing in config")
@@ -142,11 +142,7 @@ class Config:
 
                     actions[action.get("name")] = Set(
                         name=action.get("name"),
-                        field=(
-                            fields[action.get("field", None)]
-                            if action.get("field", None)
-                            else None
-                        ),
+                        field=fields[action["field"]],
                         value=Imposter(
                             action.get("value", None),
                             action.get("arguments", []),
@@ -343,7 +339,7 @@ tables:
       - name: employee_id
         type: int
         value: table_random(employees, id, 0)
-      
+
       - name: order_date
         type: string
         value: fake.date_between
@@ -373,7 +369,7 @@ tables:
         field: order_status
         action: set
         value: fake.random_element
-        arguments: 
+        arguments:
         - ('pending', 'completed', 'shipped', 'delivered')
         frequency: 0.25
 

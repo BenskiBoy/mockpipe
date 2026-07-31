@@ -1,4 +1,4 @@
-from typing import List, Dict, Type, Optional
+from typing import List, Dict, Type
 import time
 import csv
 import jsonlines

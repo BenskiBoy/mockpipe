@@ -3,4 +3,5 @@ duckdb==1.0.0
 Faker==26.0.0
 faker-commerce==1.0.4
 jsonlines==4.0.0
+pandas>=2.0.3
 PyYAML==6.0.1

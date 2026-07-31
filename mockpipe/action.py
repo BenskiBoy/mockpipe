@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Tuple, Union
 import random
 
 from .exceptions import InvalidValueError, validate_keys
@@ -7,16 +7,17 @@ from .imposter import Imposter
 
 
 class EffectCount:
-    def __init__(self, effect_count: str):
-        self.single_value = None
-        self.range_values = None
+    def __init__(self, effect_count: Union[str, int]):
+        self.single_value: Optional[int] = None
+        self.range_values: Optional[Tuple[int, int]] = None
         self.inherit = False
 
         # default effect count to 1 if not set
         if not effect_count:
-            effect_count = 1
+            effect_count = "1"
 
-        effect_count = effect_count.strip().lower()
+        # YAML parses an unquoted number (e.g. `effect_count: 1`) as an int
+        effect_count = str(effect_count).strip().lower()
         if effect_count == "inherit":
             self.inherit = True
         elif "," in effect_count:
@@ -25,11 +26,12 @@ class EffectCount:
         else:
             self.single_value = int(effect_count)
 
-    def get_count(self) -> int:
+    def get_count(self) -> Union[int, str]:
         if self.inherit:
             return "INHERIT"
         if self.range_values:
             return random.randint(self.range_values[0], self.range_values[1])
+        assert self.single_value is not None
         return self.single_value
 
     def __repr__(self):
@@ -44,7 +46,7 @@ class Action:
     """Parent class for all actions. Action is performs an action on a table"""
 
     REQUIRED_CONFIG_KEYS = ["name", "action", "frequency"]
-    OPTIONAL_CONFIG_KEYS = []
+    OPTIONAL_CONFIG_KEYS: List[str] = []
     EQUALITIES = [
         "==",
         ">=",
@@ -59,24 +61,22 @@ class Action:
         self,
         name: str,
         frequency: float,
-        arguments: Union[List[str], List[int]] = [],
-        effect: str = None,
-        effect_count: str = None,
-        action_condition: str = None,
+        arguments: Optional[Union[List[str], List[int]]] = None,
+        effect: Optional[str] = None,
+        effect_count: Optional[Union[str, int]] = None,
+        action_condition: Optional[str] = None,
     ):
         self.name = name
         self.frequency = frequency
-        self.arguments = arguments
+        self.arguments = arguments if arguments is not None else []
         self.effect = effect
         self.action_condition = action_condition.upper() if action_condition else None
         # init effect fields to None
-        (
-            self.effect_table,
-            self.effect_action,
-            self.effect_count,
-            self.effect_fields,
-        ) = (None, None, None, {})
-        if self.effect:
+        self.effect_table: Optional[str] = None
+        self.effect_action: Optional[str] = None
+        self.effect_count: Optional[EffectCount] = None
+        self.effect_fields: Dict[str, str] = {}
+        if effect:
             self.effect_table = effect.split(".")[0].strip()
             self.effect_action = effect.split(".")[1].split("(")[0].strip()
             self.effect_fields = {}
@@ -110,11 +110,12 @@ class Action:
                 )
 
     def _pass_where_clause(self, where_clause: str):
-
-        strip_ws = lambda txt: '"'.join(
-            it if i % 2 else "".join(it.split())
-            for i, it in enumerate(txt.split('"') if '"' in txt else txt.split("'"))
-        )  # note, will replace single quotes with double quotes, this will be default behaviour for Imposter fields as well
+        def strip_ws(txt: str) -> str:
+            # replaces single quotes with double quotes; default behaviour for Imposter fields too
+            return '"'.join(
+                it if i % 2 else "".join(it.split())
+                for i, it in enumerate(txt.split('"') if '"' in txt else txt.split("'"))
+            )
 
         where_clause = strip_ws(where_clause)
 
@@ -143,7 +144,7 @@ class Action:
             raise NotImplementedError()
 
     @classmethod
-    def is_valid(self, attribs: Dict):
+    def is_valid(self, attribs: Dict, table_name: str = "") -> bool:
         raise NotImplementedError()
 
     def __str__(self):
@@ -167,9 +168,9 @@ class Create(Action):
         self,
         name: str,
         frequency: float,
-        effect: str = None,
-        effect_count: str = None,
-        action_condition: str = None,
+        effect: Optional[str] = None,
+        effect_count: Optional[Union[str, int]] = None,
+        action_condition: Optional[str] = None,
     ):
         super().__init__(
             name,
@@ -210,10 +211,10 @@ class Remove(Action):
         self,
         name: str,
         frequency: float,
-        where_clause: str,
-        effect: str = None,
-        effect_count: str = None,
-        action_condition: str = None,
+        where_clause: Optional[str],
+        effect: Optional[str] = None,
+        effect_count: Optional[Union[str, int]] = None,
+        action_condition: Optional[str] = None,
     ):
         super().__init__(
             name,
@@ -227,10 +228,10 @@ class Remove(Action):
         self.where_clause = where_clause
 
         if where_clause:
-            self._pass_where_clause(self.where_clause)
+            self._pass_where_clause(where_clause)
 
     @classmethod
-    def is_valid(self, attribs: Dict, table_name: str) -> bool:
+    def is_valid(self, attribs: Dict, table_name: str = "") -> bool:
         if attribs["action"].lower() != "remove":
             return False
         validate_keys(
@@ -261,12 +262,12 @@ class Set(Action):
         name: str,
         field: Field,
         value: Imposter,
-        where_clause: str = None,
+        where_clause: Optional[str] = None,
         frequency: float = 0.0,
-        arguments: Union[List[str], List[int]] = [],
-        effect: str = None,
-        effect_count: str = None,
-        action_condition: str = None,
+        arguments: Optional[Union[List[str], List[int]]] = None,
+        effect: Optional[str] = None,
+        effect_count: Optional[Union[str, int]] = None,
+        action_condition: Optional[str] = None,
     ) -> None:
         super().__init__(
             name,
@@ -279,9 +280,9 @@ class Set(Action):
         self.field = field
         self.value = value
         self.where_clause = where_clause
-        self.arguments = arguments
+        self.arguments = arguments if arguments is not None else []
         if where_clause:
-            self._pass_where_clause(self.where_clause)
+            self._pass_where_clause(where_clause)
 
     @classmethod
     def is_valid(self, attribs: Dict, table_name: str = "") -> bool:
