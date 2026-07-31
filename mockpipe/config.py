@@ -276,7 +276,7 @@ inter_action_delay: 0.5
 
 output:
   format: json
-  path: extact_json
+  path: extract_json
 
 tables:
   - name: employees

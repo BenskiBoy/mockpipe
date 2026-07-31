@@ -52,23 +52,29 @@ Basic Usage
   yaml_config = """
   tables:
     - name: users
-      columns:
+      fields:
         - name: id
-          type: integer
-          primary_key: true
+          type: int
+          value: increment
+          is_pk: true
         - name: name
           type: string
-          faker: name
+          value: fake.name
         - name: email
           type: string
-          faker: email
-  actions:
-    - table: users
-      action: insert
-      frequency: 1.0
+          value: fake.email
+      actions:
+        - name: create
+          action: create
+          frequency: 1.0
+  """
 
-  # Initialize Mockpipe with the configuration
-  mp = mockpipe.Mockpipe(yaml_config)
+  # Initialize MockPipe with the configuration
+  mp = mockpipe.MockPipe(yaml_config)
+
+  # Run for 10 steps
+  for _ in range(10):
+      mp.step()
 
 Command line Usage
 --------------------
