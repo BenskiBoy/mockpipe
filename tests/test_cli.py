@@ -33,16 +33,6 @@ tables:
 def test_config_create_writes_sample_config():
     runner = CliRunner()
     with runner.isolated_filesystem():
-        result = runner.invoke(mockpipe_cli, ["--config_create"])
-
-        assert result.exit_code == 0
-        assert os.path.isfile("./config.yaml")
-        assert "Sample config file created" in result.output
-
-
-def test_config_create_hyphenated_alias():
-    runner = CliRunner()
-    with runner.isolated_filesystem():
         result = runner.invoke(mockpipe_cli, ["--config-create"])
 
         assert result.exit_code == 0

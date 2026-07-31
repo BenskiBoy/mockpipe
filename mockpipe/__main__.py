@@ -32,8 +32,6 @@ def spinning_wheel(self, message: str = "Generating"):
 @click.command()
 @click.option(
     "--config-create",
-    "--config_create",
-    "config_create",
     help="generate a sample config file",
     is_flag=True,
 )
@@ -90,7 +88,7 @@ def mockpipe_cli(
     )
     if options_selected > 1:
         raise click.UsageError(
-            "Only one of --config_create, --steps, --run-time, or --dry-run can be provided"
+            "Only one of --config-create, --steps, --run-time, or --dry-run can be provided"
         )
 
     logging.basicConfig(

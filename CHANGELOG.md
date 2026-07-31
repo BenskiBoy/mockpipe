@@ -5,7 +5,7 @@
 * add `output.batch_size` to buffer changed rows per table before writing a file, instead of one file per single change (`MockPipe.flush_exports()` / `stop()` writes out any partial batch)
 * add `--output-format`/`--output-path` CLI flags to override the config file's output settings without editing it
 * add a step progress counter (`Step N/total`) for `--steps`, replacing the indefinite spinner there
-* add `--config-create` as a hyphenated alias for `--config_create`, for consistency with the rest of the CLI's flag naming
+* **breaking:** rename `--config_create` to `--config-create`, for consistency with the rest of the CLI's flag naming (no alias kept - update any scripts using the old name)
 * document the `_mockpipe_metadata` table and the new config/CLI options in the README
 
 ### 0.0.8 - 2026-07-31
