@@ -4,6 +4,7 @@ import time
 import itertools
 import threading
 import sys
+from typing import Union
 
 from .mockpipe import MockPipe
 from .config import Config
@@ -30,7 +31,7 @@ def spinning_wheel(self, message: str = "Generating"):
 
 @click.command()
 @click.option(
-    "--config_create",
+    "--config-create",
     help="generate a sample config file",
     is_flag=True,
 )
@@ -56,6 +57,16 @@ def spinning_wheel(self, message: str = "Generating"):
     is_flag=True,
 )
 @click.option(
+    "--output-format",
+    help="Override the config file's output.format (e.g. json, csv, parquet)",
+    default=None,
+)
+@click.option(
+    "--output-path",
+    help="Override the config file's output.path",
+    default=None,
+)
+@click.option(
     "--verbose",
     help="Enable verbose logging",
     is_flag=True,
@@ -67,6 +78,8 @@ def mockpipe_cli(
     steps: int,
     run_time: int,
     dry_run: bool,
+    output_format: str,
+    output_path: str,
     verbose: bool,
 ):
 
@@ -75,7 +88,7 @@ def mockpipe_cli(
     )
     if options_selected > 1:
         raise click.UsageError(
-            "Only one of --config_create, --steps, --run-time, or --dry-run can be provided"
+            "Only one of --config-create, --steps, --run-time, or --dry-run can be provided"
         )
 
     logging.basicConfig(
@@ -89,18 +102,32 @@ def mockpipe_cli(
         print("Sample config file created at ./config.yaml")
         return
 
+    effective_config: Union[str, dict] = config
+    if output_format or output_path:
+        cnf_probe = Config(config)
+        output_cfg = cnf_probe.config.setdefault("output", {})
+        if output_format:
+            output_cfg["format"] = output_format
+        if output_path:
+            output_cfg["path"] = output_path
+        effective_config = cnf_probe.config
+
     if dry_run:
-        cnf = Config(config)
+        cnf = Config(effective_config)
         cnf.load_datasets()
-        click.echo(f"Config `{config}` is valid")
+        click.echo("Config is valid")
         return
 
     click.echo(f"Loading config from {config}")
 
-    mp = MockPipe(config)
+    mp = MockPipe(effective_config)
+
+    # The spinner has no natural end point for --steps, since we know the
+    # total up front - show a step counter there instead.
+    show_spinner = not verbose and steps is None
 
     try:
-        if not verbose:  # don't display spinner if verbose logging is enabled
+        if show_spinner:
             stop_flag, spinner_thread = spinning_wheel("Generating")
 
         if steps is None and run_time is None and not config_create:
@@ -109,9 +136,14 @@ def mockpipe_cli(
                 time.sleep(1)
 
         if steps is not None:
-            for _ in range(steps):
+            for i in range(steps):
                 mp.step()
+                if not verbose:
+                    sys.stdout.write(f"\rStep {i + 1}/{steps}")
+                    sys.stdout.flush()
                 time.sleep(mp.cnf.inter_action_delay)
+            if not verbose:
+                sys.stdout.write("\n")
 
         if run_time is not None:
             mp.start()
@@ -119,14 +151,14 @@ def mockpipe_cli(
 
     except KeyboardInterrupt:
         mp.stop()
-        if not verbose:
+        if show_spinner:
             stop_flag.set()
             spinner_thread.join()
         sys.exit(0)
 
     finally:
         mp.stop()
-        if not verbose:
+        if show_spinner:
             stop_flag.set()
             spinner_thread.join()
 

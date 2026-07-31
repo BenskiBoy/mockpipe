@@ -84,14 +84,16 @@ Command line Usage
   Usage: mockpipe [OPTIONS]
 
   Options:
-    --config_create     generate a sample config file
-    --config PATH       path to yaml config file
-    --steps INTEGER     Number of steps to execute initially
-    --run-time INTEGER  Time to run the mockpipe process in seconds
-    --dry-run           Validate the config file and exit without running anything
-    --verbose           Enable verbose logging
-    --version           Show the version and exit.
-    --help              Show this message and exit.
+    --config-create      generate a sample config file
+    --config PATH        path to yaml config file
+    --steps INTEGER       Number of steps to execute initially
+    --run-time INTEGER   Time to run the mockpipe process in seconds
+    --dry-run            Validate the config file and exit without running anything
+    --output-format TEXT Override the config file's output.format (e.g. json, csv, parquet)
+    --output-path TEXT   Override the config file's output.path
+    --verbose            Enable verbose logging
+    --version            Show the version and exit.
+    --help               Show this message and exit.
 
 Config Specification
 --------------------
@@ -114,13 +116,17 @@ Config Specification
 
 **Output**
 
-+--------+------------+----------------------+---------------+---------+------------------------+
-| key    | value type | allowed values       | default value | sample  | explanation            |
-+========+============+======================+===============+=========+========================+
-| format | string     | [json, csv, parquet] | json          | json    | file format output     |
-+--------+------------+----------------------+---------------+---------+------------------------+
-| path   | path       | any                  | extract       | extract | folder path for output |
-+--------+------------+----------------------+---------------+---------+------------------------+
++------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
+| key        | value type | allowed values       | default value | sample  | explanation                                                   |
++============+============+======================+===============+=========+===============================================================+
+| format     | string     | [json, csv, parquet] | json          | json    | file format output                                            |
++------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
+| path       | path       | any                  | extract       | extract | folder path for output                                        |
++------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
+| batch_size | int        | 1 ->                 | 1             | 50      | buffer this many changed rows per table before writing a file |
++------------+------------+----------------------+---------------+---------+---------------------------------------------------------------+
+
+Note: without ``batch_size``, mockpipe writes one output file per changed row, which can produce a large number of small files over a long run. Buffered rows are also written out when the process stops (or via ``MockPipe.flush_exports()`` if you only ever call ``step()`` directly).
 
 **Full Load**
 
@@ -135,6 +141,8 @@ If the ``full_load`` key is present, every ``full_load.frequency`` recorded chan
 +-----------------+------------+----------------+---------------+--------+-------------------------------------------------------------+
 
 Note: ``include_deletes: true`` is incompatible with ``delete_behaviour: hard``, since hard-deleted rows no longer exist to include.
+
+mockpipe also creates its own ``_mockpipe_metadata`` table in your ``db_path`` database (alongside the tables you define). It tracks how many changes have been recorded so far, so that ``full_load``'s schedule resumes correctly if you re-open the same ``db_path`` in a later run instead of restarting from zero. You can safely ignore this table - it isn't exported and isn't part of the data mockpipe generates for you.
 
 **Tables**
 

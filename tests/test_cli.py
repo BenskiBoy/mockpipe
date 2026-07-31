@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 from click.testing import CliRunner
 
@@ -32,7 +33,7 @@ tables:
 def test_config_create_writes_sample_config():
     runner = CliRunner()
     with runner.isolated_filesystem():
-        result = runner.invoke(mockpipe_cli, ["--config_create"])
+        result = runner.invoke(mockpipe_cli, ["--config-create"])
 
         assert result.exit_code == 0
         assert os.path.isfile("./config.yaml")
@@ -116,3 +117,44 @@ def test_steps_runs_requested_number_of_steps():
         conn = duckdb.connect("test.db")
         count = conn.sql("select count(*) as cnt from foo").fetchone()[0]
         assert count == 3
+
+
+def test_steps_shows_progress_counter():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with open("config.yaml", "w") as f:
+            f.write(SAMPLE_CONFIG)
+
+        result = runner.invoke(
+            mockpipe_cli, ["--config", "config.yaml", "--steps", "3"]
+        )
+
+        assert result.exit_code == 0
+        assert "Step 3/3" in result.output
+
+
+def test_output_format_and_path_overrides():
+    runner = CliRunner()
+    with runner.isolated_filesystem():
+        with open("config.yaml", "w") as f:
+            f.write(SAMPLE_CONFIG)  # config says output.format: json, path: extract
+
+        result = runner.invoke(
+            mockpipe_cli,
+            [
+                "--config",
+                "config.yaml",
+                "--steps",
+                "2",
+                "--output-format",
+                "csv",
+                "--output-path",
+                "custom_extract",
+                "--verbose",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert not os.path.isdir("extract")
+        csv_files = list((Path("custom_extract") / "foo").glob("*.csv"))
+        assert len(csv_files) == 2

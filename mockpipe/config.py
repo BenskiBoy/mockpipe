@@ -63,11 +63,15 @@ class Config:
 
         self.output_format = self.config.get("output", {}).get("format", "json")
         self.output_path = self.config.get("output", {}).get("path", "extract")
+        self.output_batch_size = self.config.get("output", {}).get("batch_size", 1)
 
         if self.delete_behaviour not in Config.DELETE_BEHAVIOURS:
             raise InvalidConfigSettingError(
                 "Invalid delete behaviour, either 'HARD' or 'SOFT'"
             )
+
+        if self.output_batch_size < 1:
+            raise InvalidConfigSettingError("output.batch_size must be at least 1")
 
         # full load settings
         self.full_load = "full_load" in self.config
