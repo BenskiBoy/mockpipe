@@ -54,6 +54,11 @@ setup(
             # unpinned floor, not an exact pin: newer dated releases require
             # Python >=3.10, so an exact pin breaks the 3.8/3.9 matrix jobs.
             "types-PyYAML>=6.0.12.20241230",
+            # requests only started shipping an inline py.typed marker in
+            # later releases - the floor-pinned requests>=2.31 above can
+            # still resolve to a version without one, so mypy needs stubs
+            # regardless of which requests version actually gets installed.
+            "types-requests>=2.31",
         ],
     },
     entry_points={
