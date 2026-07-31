@@ -4,6 +4,8 @@ import csv
 import jsonlines
 import os
 
+import pandas as pd
+
 
 class BaseExporter:
     """Base class for exporters, to be extended for specific formats"""
@@ -56,6 +58,24 @@ class JSONExporter(BaseExporter):
             f.write_all(values)
 
 
+class ParquetExporter(BaseExporter):
+    def export(self, table_name: str, values: List[Dict], format: str) -> None:
+        """Export data to Parquet format"""
+        if format.lower() != "parquet":
+            raise NotImplementedError("ParquetExporter only supports Parquet format")
+        self._export_parquet(self.base_path, table_name, values)
+
+    def _export_parquet(
+        self, base_path: str, table_name: str, values: List[Dict]
+    ) -> None:
+        # Create directory if it doesn't exist
+        os.makedirs(f"{base_path}/{table_name}", exist_ok=True)
+
+        pd.DataFrame(values).to_parquet(
+            f"{base_path}/{table_name}/{table_name}_{str(time.time()).replace('.', '').ljust(17, '0')}.parquet"
+        )
+
+
 class ExporterRegistry:
     """Registry for managing exporter classes"""
 
@@ -92,6 +112,7 @@ class ExporterRegistry:
 # Register built-in exporters
 ExporterRegistry.register("csv", CSVExporter)
 ExporterRegistry.register("json", JSONExporter)
+ExporterRegistry.register("parquet", ParquetExporter)
 
 
 class Exporter:

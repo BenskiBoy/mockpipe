@@ -108,13 +108,13 @@ Config Specification
 
 **Output**
 
-+--------+------------+----------------+---------------+---------+------------------------+
-| key    | value type | allowed values | default value | sample  | explanation            |
-+========+============+================+===============+=========+========================+
-| format | string     | [json, csv]    | json          | json    | file format output     |
-+--------+------------+----------------+---------------+---------+------------------------+
-| path   | path       | any            | extract       | extract | folder path for output |
-+--------+------------+----------------+---------------+---------+------------------------+
++--------+------------+----------------------+---------------+---------+------------------------+
+| key    | value type | allowed values       | default value | sample  | explanation            |
++========+============+======================+===============+=========+========================+
+| format | string     | [json, csv, parquet] | json          | json    | file format output     |
++--------+------------+----------------------+---------------+---------+------------------------+
+| path   | path       | any                  | extract       | extract | folder path for output |
++--------+------------+----------------------+---------------+---------+------------------------+
 
 **Full Load**
 
@@ -301,11 +301,9 @@ Used to specify if the action is only ever to be invoked by another action (i.e.
 
 Future Enhancements
 --------------------
-- improved yaml config validation
-- improved logging
-- increased test coverage
-- simplyfy action usage and allow for duckdb functions
-- better typing support
+- simplify action usage and allow for duckdb functions
+- move from raw SQL string concatenation to parameterized queries
+- additional exporters (e.g. direct-to-Postgres/S3)
 
 
 

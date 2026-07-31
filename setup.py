@@ -37,6 +37,9 @@ setup(
         # 2.1.1+), so pip must be free to pick per-interpreter.
         "pandas>=2.0.3",
         "PyYAML==6.0.1",
+        # unpinned floor: same per-interpreter reasoning as pandas above.
+        "pydantic>=2.0",
+        "pyarrow>=14.0",
     ],
     extras_require={
         "dev": [
